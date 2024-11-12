@@ -9,9 +9,10 @@ A CLI tool that creates AI-generated podcast discussions from YouTube videos. It
 - Downloads YouTube videos/audio using yt-dlp
 - Transcribes audio using Faster Whisper
 - Generates natural conversations using Claude AI
-- Converts text to speech using ElevenLabs voices
+- Converts text to speech using ElevenLabs voices - have 2 voices talking about the youtube video
 - Fact-checks content using AI
 - Generates audio files for each part of the conversation
+- Can combine and have one audio file for AI Podcast with fact checking
 
 ## Prerequisites
 
@@ -130,3 +131,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 2. Audio covers more of the transcript and youtube conversation
 3. Adding Openai 
 4. Adding ollama
+5. Add web search into fact checking of podcast
