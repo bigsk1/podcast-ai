@@ -132,3 +132,42 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 3. Adding Openai 
 4. Adding ollama
 5. Add web search into fact checking of podcast
+
+## Troubleshooting
+
+### Could not locate cudnn_ops64_9.dll
+
+```bash
+Could not locate cudnn_ops64_9.dll. Please make sure it is in your library path!
+Invalid handle. Cannot load symbol cudnnCreateTensorDescriptor
+```
+
+To resolve this:
+
+Install cuDNN: Download cuDNN from the NVIDIA cuDNN page https://developer.nvidia.com/cudnn
+
+Here’s how to add it to the PATH:
+
+Open System Environment Variables:
+
+Press Win + R, type sysdm.cpl, and hit Enter. Go to the Advanced tab, and click on Environment Variables. Edit the System PATH Variable:
+
+In the System variables section, find the Path variable, select it, and click Edit. Click New and add the path to the bin directory where cudnn_ops64_9.dll is located. Based on your setup, you would add:
+
+```bash
+C:\Program Files\NVIDIA\CUDNN\v9.5\bin\12.6
+```
+
+Apply and Restart:
+
+Click OK to close all dialog boxes, then restart your terminal (or any running applications) to apply the changes. Verify the Change:
+
+Open a new terminal and run
+
+```bash
+where cudnn_ops64_9.dll
+```
+
+## pyaudio codec issue
+
+Make sure you have ffmpeg inside and adding to PATH on windows terminal ( winget install ffmpeg )
