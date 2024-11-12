@@ -1,6 +1,6 @@
 # AI Podcast Generator
 
-UNDER ACTIVATE DEVELOPMENT! Maybe have bugs 
+UNDER ACTIVATE DEVELOPMENT!
 
 A CLI tool that creates AI-generated podcast discussions from YouTube videos. It downloads videos, transcribes them, analyzes the content, and generates a natural conversation between two AI voices discussing the content.
 
@@ -14,6 +14,8 @@ A CLI tool that creates AI-generated podcast discussions from YouTube videos. It
 - Generates audio files for each part of the conversation
 
 ## Prerequisites
+
+Tested in Windows 
 
 - Python 3.10+
 - Nvidia GPU for whisper
@@ -121,3 +123,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+## In Progress
+
+1. Getting audio clips longer
+2. Audio covers more of the transcript and youtube conversation
+3. Adding Openai 
+4. Adding ollama
