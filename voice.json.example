@@ -1,0 +1,36 @@
+{
+    "voices": [
+        {
+            "id": "MwxR6MTQizZcwvekg0wc",
+            "name": "Carmen"
+        },
+        {
+            "id": "ZAIfZW1JbeDCmunfBv4m",
+            "name": "Tally"
+        },
+        {
+            "id": "L5iegTeymjgxJAU7dOrN",
+            "name": "Victoria"
+        },
+        {
+            "id": "Mg1264PmwVoIedxsF9nu",
+            "name": "Von Fusion"
+        },
+        {
+            "id": "pgCnBQgKPGkIP8fJuita",
+            "name": "Jarvis"
+        },
+        {
+            "id": "EiNlNiXeDU1pqqOPrYMO",
+            "name": "John"
+        },
+        {
+            "id": "kz8mB8WAwV9lZ0fuDqel",
+            "name": "Nigel"
+        },
+        {
+            "id": "22FgtP4D63L7UXvnTmGf",
+            "name": "Wildebeest"
+        }
+    ]
+}
