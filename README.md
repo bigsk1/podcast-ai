@@ -58,27 +58,27 @@ ANTHROPIC_API_KEY=your_key_here
 MODEL_NAME=claude-3-5-sonnet-20241022
 
 # Podcast Generation Settings
-MIN_EXCHANGES=4                    # Minimum number of back-and-forth exchanges
-MAX_EXCHANGES=20                   # Maximum number of exchanges
+MIN_EXCHANGES=4                    # Minimum number of back-and-forth exchanges - important setting
+MAX_EXCHANGES=20                   # Maximum number of exchanges                - important setting
 MIN_SENTENCES_PER_EXCHANGE=2       # Minimum sentences per speaker turn
 MAX_SENTENCES_PER_EXCHANGE=4       # Maximum sentences per speaker turn
 EXCHANGE_LENGTH_MIN_WORDS=20       # Minimum words per exchange
 EXCHANGE_LENGTH_MAX_WORDS=150      # Maximum words per exchange
 
 # Audio Length Control
-TARGET_LENGTH_MINUTES=3            # Target length for final podcast (in minutes)
+TARGET_LENGTH_MINUTES=3            # Target length for final podcast (in minutes)  - important setting
 LENGTH_FLEXIBILITY=0.2             # Allowed deviation from target (20% = ±36 seconds for 3 min target)
 SOURCE_LENGTH_RATIO=0.2            # Target output length as ratio of source (0.2 = 20% of original)
-MIN_PODCAST_LENGTH=2               # Minimum podcast length in minutes
-MAX_PODCAST_LENGTH=10              # Maximum podcast length in minutes
+MIN_PODCAST_LENGTH=2               # Minimum podcast length in minutes   - important setting
+MAX_PODCAST_LENGTH=10              # Maximum podcast length in minutes   - important setting
 
 # Audio Generation Settings
 MAX_CHARS_PER_VOICE=2000          # Maximum characters per voice clip
 PAUSE_BETWEEN_EXCHANGES=1          # Seconds of pause between exchanges
 
 # Content Coverage
-COVERAGE_STYLE=humor       # comprehensive, summary, or highlights, humor
-FACT_CHECK_ENABLED=false           # Enable AI fact checking
+COVERAGE_STYLE=humor             # comprehensive, summary, or highlights, humor
+FACT_CHECK_ENABLED=false         # Enable AI fact checking
 FACT_CHECK_STYLE=balanced        # balanced, critical, or supportive
 
 # Model Settings
