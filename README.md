@@ -1,6 +1,5 @@
 # AI Podcast Generator
 
-UNDER ACTIVATE DEVELOPMENT!
 
 A CLI tool that creates AI-generated podcast discussions from YouTube videos. It downloads videos, transcribes them, analyzes the content, and generates a natural conversation between two AI voices discussing the content.
 
@@ -8,20 +7,19 @@ A CLI tool that creates AI-generated podcast discussions from YouTube videos. It
 
 - Downloads YouTube videos/audio using yt-dlp
 - Transcribes audio using Faster Whisper
-- Generates natural conversations using Claude AI
+- Generates natural conversations styles using Claude AI
 - Converts text to speech using ElevenLabs voices - have 2 voices talking about the youtube video
-- Fact-checks content using AI
+- Fact-checks content using AI if enabled in .env
 - Generates audio files for each part of the conversation
-- Can combine and have one audio file for AI Podcast with fact checking
 
 ## Prerequisites
 
 Tested in Windows 
 
 - Python 3.10+
-- Nvidia GPU for whisper
+- Nvidia GPU for whisper (optional)
 - FFmpeg installed and in PATH
-- Nvidia cuDNN installed to path
+- Nvidia cuDNN installed to path (for nvidia gpu)
 - ElevenLabs API key
 - Anthropic (Claude) API key
 - voices.json configuration file
@@ -49,14 +47,48 @@ pip install -r requirements.txt
 
 4. Create .env file with your API keys:
 ```env
+# ELEVENLABS VOICE ID'S
+VOICE1=NYC9WEgkq1u4jiqBseQ9    # male
+VOICE2=b0uJ9TWzQss61d8f2OWX   # female
+
+
+# AI Model Settings
 AI_PROVIDER=anthropic
-ANTHROPIC_API_KEY=your_key
-ELEVENLABS_API_KEY=your_key
-VOICE1=your_voice_id_1
-VOICE2=your_voice_id_2
-MAX_AUDIO_LENGTH_SECONDS=120
-WORDS_PER_MINUTE=400
-MAX_CHARS_PER_VOICE=1000
+ANTHROPIC_API_KEY=your_key_here
+MODEL_NAME=claude-3-5-sonnet-20241022
+
+# Podcast Generation Settings
+MIN_EXCHANGES=4                    # Minimum number of back-and-forth exchanges
+MAX_EXCHANGES=20                   # Maximum number of exchanges
+MIN_SENTENCES_PER_EXCHANGE=2       # Minimum sentences per speaker turn
+MAX_SENTENCES_PER_EXCHANGE=4       # Maximum sentences per speaker turn
+EXCHANGE_LENGTH_MIN_WORDS=20       # Minimum words per exchange
+EXCHANGE_LENGTH_MAX_WORDS=150      # Maximum words per exchange
+
+# Audio Length Control
+TARGET_LENGTH_MINUTES=3            # Target length for final podcast (in minutes)
+LENGTH_FLEXIBILITY=0.2             # Allowed deviation from target (20% = ±36 seconds for 3 min target)
+SOURCE_LENGTH_RATIO=0.2            # Target output length as ratio of source (0.2 = 20% of original)
+MIN_PODCAST_LENGTH=2               # Minimum podcast length in minutes
+MAX_PODCAST_LENGTH=10              # Maximum podcast length in minutes
+
+# Audio Generation Settings
+MAX_CHARS_PER_VOICE=2000          # Maximum characters per voice clip
+PAUSE_BETWEEN_EXCHANGES=1          # Seconds of pause between exchanges
+
+# Content Coverage
+COVERAGE_STYLE=humor       # comprehensive, summary, or highlights, humor
+FACT_CHECK_ENABLED=false           # Enable AI fact checking
+FACT_CHECK_STYLE=balanced        # balanced, critical, or supportive
+
+# Model Settings
+TEMPERATURE=0.7
+MAX_TOKENS=8192
+
+LOGGING_LEVEL=DEBUG
+
+# Output Directory
+OUTPUT_DIR=output
 ```
 
 ## Usage
@@ -71,17 +103,23 @@ Skip audio generation:
 python main.py --no-audio "https://www.youtube.com/watch?v=video_id"
 ```
 
+Generate but don't merge:
+```bash
+python main.py --no-merge "https://www.youtube.com/watch?v=video_id"
+```
+
 ## Output
 
 The tool generates:
 - Transcription of the video
-- AI-generated conversation about the content
-- Audio files for each part of the conversation
+- AI-generated conversation about the content with your selected voices
+- Audio files for each part of the conversation + auto merge when finished
 - Fact-checking analysis (if enabled)
+- Min and Max length of audio podcast clips
 
 Output files are saved in the `output` directory.
 
-to merge all audio files to one audio file
+to merge all audio files to one audio file manually
 
 ```bash
 python merge_audio.py output conversation.mp3 
