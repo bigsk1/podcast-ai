@@ -145,6 +145,7 @@ Create a voices.json file with your ElevenLabs voice configurations:
 ```
 ## Examples
 
+https://aicodelabs.io/silo.mp3
 
 <audio controls>
     <source src="https://aicodelabs.io/silo.mp3" type="audio/mpeg">
@@ -152,6 +153,8 @@ Create a voices.json file with your ElevenLabs voice configurations:
 </audio>
 
 ---
+
+https://aicodelabs.io/merged.mp3
 
 <audio controls>
     <source src="https://aicodelabs.io/merged.mp3" type="audio/mpeg">
