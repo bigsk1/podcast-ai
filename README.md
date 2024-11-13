@@ -57,6 +57,9 @@ AI_PROVIDER=anthropic
 ANTHROPIC_API_KEY=your_key_here
 MODEL_NAME=claude-3-5-sonnet-20241022
 
+# ELEVENLABS API
+ELEVENLABS_API_KEY=your_key_here
+
 # Podcast Generation Settings
 MIN_EXCHANGES=4                    # Minimum number of back-and-forth exchanges - important setting
 MAX_EXCHANGES=20                   # Maximum number of exchanges                - important setting
