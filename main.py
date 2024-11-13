@@ -7,13 +7,10 @@ import yt_dlp
 import requests
 from faster_whisper import WhisperModel
 from anthropic import Anthropic
-from openai import OpenAI
 import logging
 from datetime import datetime
 import asyncio
 from typing import Dict, List
-import newspaper
-from urllib.parse import urlparse
 import html2text
 import subprocess
 
