@@ -143,6 +143,21 @@ Create a voices.json file with your ElevenLabs voice configurations:
     ]
 }
 ```
+## Examples
+
+
+<audio controls>
+    <source src="https://aicodelabs.io/silo.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+</audio>
+
+---
+
+<audio controls>
+    <source src="https://aicodelabs.io/merged.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+</audio>
+
 
 ## License
 
