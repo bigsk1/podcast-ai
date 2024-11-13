@@ -12,7 +12,6 @@ import logging
 from datetime import datetime
 import asyncio
 from typing import Dict, List
-from duckduckgo_search import DDGS
 import newspaper
 from urllib.parse import urlparse
 import html2text
@@ -96,27 +95,49 @@ class PodcastAnalyzer:
             logging.error(f"Could not fetch ElevenLabs quota: {str(e)}")
             print("\nWarning: Could not fetch ElevenLabs quota")
             return None, None
-        
-    
-        
+
+
     def setup_config(self):
         """Initialize configuration from environment variables"""
         self.config = {
+            # Core Settings
             'AI_PROVIDER': os.getenv('AI_PROVIDER', 'anthropic'),
             'ANTHROPIC_API_KEY': os.getenv('ANTHROPIC_API_KEY'),
-            'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY'),
-            'ELEVENLABS_API_KEY': os.getenv('ELEVENLABS_API_KEY'),
-            'OLLAMA_HOST': os.getenv('OLLAMA_HOST', 'http://localhost:11434'),
             'MODEL_NAME': os.getenv('MODEL_NAME', 'claude-3-5-sonnet-20241022'),
-            'OLLAMA_MODEL': os.getenv('OLLAMA_MODEL', 'llama2'),
             'OUTPUT_DIR': os.getenv('OUTPUT_DIR', 'output'),
+            
+            # Model Settings
+            'TEMPERATURE': float(os.getenv('TEMPERATURE', '0.7')),
+            'MAX_TOKENS': int(os.getenv('MAX_TOKENS', '8192')),
+            
+            # Voice Settings
             'VOICE1': os.getenv('VOICE1'),
             'VOICE2': os.getenv('VOICE2'),
-            'MAX_SEARCH_RESULTS': int(os.getenv('MAX_SEARCH_RESULTS', '3')),
-            'MAX_ARTICLE_LENGTH': int(os.getenv('MAX_ARTICLE_LENGTH', '5000')),
-            'MAX_AUDIO_LENGTH_SECONDS': int(os.getenv('MAX_AUDIO_LENGTH_SECONDS', '30')),
-            'WORDS_PER_MINUTE': int(os.getenv('WORDS_PER_MINUTE', '150')),  # Average speaking rate
-            'MAX_CHARS_PER_VOICE': int(os.getenv('MAX_CHARS_PER_VOICE', '250'))  # Limit characters per voice line
+            'ELEVENLABS_API_KEY': os.getenv('ELEVENLABS_API_KEY'),
+            
+            # Podcast Generation Settings
+            'MIN_EXCHANGES': int(os.getenv('MIN_EXCHANGES', '4')),
+            'MAX_EXCHANGES': int(os.getenv('MAX_EXCHANGES', '20')),
+            'MIN_SENTENCES_PER_EXCHANGE': int(os.getenv('MIN_SENTENCES_PER_EXCHANGE', '2')),
+            'MAX_SENTENCES_PER_EXCHANGE': int(os.getenv('MAX_SENTENCES_PER_EXCHANGE', '4')),
+            'EXCHANGE_LENGTH_MIN_WORDS': int(os.getenv('EXCHANGE_LENGTH_MIN_WORDS', '20')),
+            'EXCHANGE_LENGTH_MAX_WORDS': int(os.getenv('EXCHANGE_LENGTH_MAX_WORDS', '100')),
+            
+            # Length Control
+            'TARGET_LENGTH_MINUTES': float(os.getenv('TARGET_LENGTH_MINUTES', '3')),
+            'SOURCE_LENGTH_RATIO': float(os.getenv('SOURCE_LENGTH_RATIO', '0.2')),
+            'MIN_PODCAST_LENGTH': float(os.getenv('MIN_PODCAST_LENGTH', '2')),
+            'MAX_PODCAST_LENGTH': float(os.getenv('MAX_PODCAST_LENGTH', '10')),
+            
+            # Audio Settings
+            'MAX_CHARS_PER_VOICE': int(os.getenv('MAX_CHARS_PER_VOICE', '2000')),
+            'PAUSE_BETWEEN_EXCHANGES': float(os.getenv('PAUSE_BETWEEN_EXCHANGES', '1')),
+            
+            # Content Settings
+            'COVERAGE_STYLE': os.getenv('COVERAGE_STYLE', 'comprehensive').lower(),
+            'FACT_CHECK_ENABLED': os.getenv('FACT_CHECK_ENABLED', 'true').lower() == 'true',
+            'FACT_CHECK_STYLE': os.getenv('FACT_CHECK_STYLE', 'balanced').lower()
+        
         }
 
     def safe_str(self, obj) -> str:
@@ -161,221 +182,492 @@ class PodcastAnalyzer:
             
         return result
 
-    async def extract_topics(self, transcript: Dict) -> List[str]:
-        """Extract main topics from transcript using AI"""
-        logging.info("Analyzing transcript for topics")
+    def _validate_dialogue(self, text: str) -> bool:
+        """Validate a single line of dialogue"""
+        if not text or len(text) < 20:
+            return False
+            
+        # Check for complete sentences
+        sentences = [s.strip() for s in text.split('.') if len(s.strip()) > 10]
+        if len(sentences) < 2:
+            return False
+            
+        # Check for conversation markers
+        conversation_markers = ['well', 'yes', 'no', 'indeed', 'however', 'but', 'and', 'so']
+        has_marker = any(marker in text.lower() for marker in conversation_markers)
         
-        prompt = f"""
-        Extract 4-5 specific factual claims from this transcript.
-        List each claim on a separate line.
-        Focus only on clear, verifiable statements.
-        Do not include any headers, notes, or formatting.
+        return has_marker and all(s[-1] in '.!?' for s in sentences)
 
-        Example format:
-        The speaker uses Pop OS version 22.04
-        They play Counter Strike twice per week
-        They have been using Linux for 1.5 years
 
-        Transcript:
-        {transcript['text']}
-        """
-        
+    def _log_content(self, prefix: str, content: str, max_length: int = 200):
+        """Helper to safely log content snippets"""
+        if content:
+            preview = content[:max_length] + ('...' if len(content) > max_length else '')
+            logging.debug(f"{prefix}: {preview}")
+        else:
+            logging.debug(f"{prefix}: <empty>")
+
+    def _process_raw_response(self, raw_content: str) -> str:
+        """Process raw response with improved ContentBlock handling"""
         try:
-            client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
-            response = client.messages.create(
-                model=self.config['MODEL_NAME'],
-                max_tokens=8192,
-                temperature=0.3,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            # First try to extract from ContentBlock if present
+            if 'ContentBlock' in raw_content:
+                matches = re.findall(r'text=["\'](.*?)["\'](?:,|\))', raw_content, re.DOTALL)
+                if matches:
+                    content = matches[0].replace('\\n', '\n').replace('\\"', '"').replace("\\'", "'")
+                    return content
             
-            # Clean up the response and extract individual topics
-            content = str(response.content)
+            # If not in ContentBlock format or extraction failed, use raw content
+            content = raw_content.strip()
             
-            # Split into lines and clean each one
-            topics = []
-            for line in content.split('\n'):
-                line = line.strip()
-                if line and not line.startswith(('Here', 'Note:', '-', '*', '•')):
-                    # Clean up any remaining formatting
-                    clean_line = re.sub(r'contentblock\(text=|\[|\]|\'|\"', '', line, flags=re.IGNORECASE)
-                    if len(clean_line) > 10:
-                        topics.append(clean_line)
+            # Ensure content has proper speaker formatting
+            if not any(line.strip().startswith(('Speaker 1:', 'Speaker 2:')) for line in content.split('\n')):
+                logging.warning("Content missing speaker format, attempting to fix...")
+                lines = content.split('\n')
+                formatted_lines = []
+                for i, line in enumerate(lines):
+                    if line.strip():
+                        speaker = "Speaker 1:" if i % 2 == 0 else "Speaker 2:"
+                        if not line.startswith(('Speaker 1:', 'Speaker 2:')):
+                            formatted_lines.append(f"{speaker} {line.strip()}")
+                        else:
+                            formatted_lines.append(line)
+                content = '\n'.join(formatted_lines)
             
-            logging.info(f"Extracted topics: {topics}")
-            return topics
+            return content
             
         except Exception as e:
-            logging.error(f"Error extracting topics: {str(e)}")
-            return []
+            logging.error(f"Error processing response: {e}")
+            return raw_content
 
-    async def fact_check_with_ai(self, transcript: Dict) -> List[Dict]:
-        """Analyze transcript for any factual issues using AI knowledge"""
-        logging.info("Analyzing transcript for factual accuracy")
+    def _extract_exchanges(self, cleaned_content: str) -> List[Dict]:
+        """Extract exchanges with improved validation"""
+        exchanges = []
+        lines = cleaned_content.split('\n')
+        max_exchanges = self.config['MAX_EXCHANGES']
         
-        prompt = f"""
-        Review this content and identify any factual claims that need correction or additional context based on your knowledge.
-        Focus on significant factual errors or misleading statements, not minor details.
-
-        Content to analyze:
-        {transcript['text']}
-
-        Provide response as a JSON list of objects, each containing:
-        {{
-            "claim": "the specific claim made",
-            "correction": "the correct information",
-            "context": "why this is important",
-            "confidence": "high/medium/low"
-        }}
-
-        Only include claims that need correction. If everything is accurate, return an empty list.
-        """
+        logging.info(f"Processing content for up to {max_exchanges} exchanges")
         
-        try:
-            client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
-            response = client.messages.create(
-                model=self.config['MODEL_NAME'],
-                max_tokens=8192,
-                temperature=0.3,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            
-            # Extract and parse the JSON response
-            content = str(response.content)
-            try:
-                corrections = json.loads(content)
-                logging.info(f"Found {len(corrections)} items needing correction")
-                return corrections
-            except json.JSONDecodeError:
-                # Try to extract JSON-like content if the response isn't perfect JSON
-                import re
-                json_match = re.search(r'\[(.*?)\]', content, re.DOTALL)
-                if json_match:
-                    corrections = json.loads(f"[{json_match.group(1)}]")
-                    return corrections
-                return []
+        for line in lines:
+            if len(exchanges) >= max_exchanges:
+                logging.info(f"Reached max exchanges limit ({max_exchanges})")
+                break
                 
-        except Exception as e:
-            logging.error(f"Error in fact checking: {str(e)}")
-            return []
-
-    def clean_conversation_text(self, text: str) -> str:
-        """Clean and format conversation text for audio generation"""
-        # Remove any partial sentences
-        sentences = text.split('.')
-        complete_sentences = [s.strip() + '.' for s in sentences if len(s.strip()) > 10]
-        
-        # Rejoin with proper spacing
-        text = ' '.join(complete_sentences)
-        
-        # Remove any markdown or special characters
-        text = re.sub(r'[*_~`]', '', text)
-        
-        # Ensure proper end punctuation
-        if not text[-1] in '.!?':
-            text += '.'
-            
-        return text
-
-    async def generate_conversation(self, transcript: Dict, fact_checks: List[Dict]) -> Dict:
-        """Generate an AI podcast-style discussion incorporating fact checks"""
-        logging.info("Generating podcast discussion with fact checking")
-        
-        prompt = f"""
-        Create a natural podcast discussion about this content. Each response should be a complete thought.
-        
-        Content to discuss:
-        {transcript['text'][:1500]}
-
-        Requirements:
-        - Create exactly 6 complete exchanges
-        - Each line must be a complete thought
-        - Each line should be 2-3 sentences long
-        - Use proper punctuation
-        - Make it sound natural
-        - Focus on the main points
-        - Do not reference video on the screen you are summarizing a youtube video
-        - Do not speak in the first person
-        
-        Format exactly as:
-        Speaker 1: [complete thought with proper punctuation]
-        Speaker 2: [complete thought with proper punctuation]
-        (continue for exactly 6 exchanges)
-        """
-        
-        try:
-            client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
-            response = client.messages.create(
-                model=self.config['MODEL_NAME'],
-                max_tokens=8192,
-                temperature=0.7,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            
-            conversation = []
-            content = str(response.content)
-            lines = [line.strip() for line in content.split('\n') if line.strip()]
-            
-            for i, line in enumerate(lines):
-                # Skip non-dialogue lines
-                if not any(x in line.lower() for x in ['speaker', 'host']):
-                    continue
-                    
-                # Clean up the line
-                text = re.sub(r'^(?:speaker|host)\s*[12]:\s*', '', line, flags=re.IGNORECASE).strip()
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Try multiple speaker patterns
+            speaker_match = re.match(r'^(?:Speaker\s*([12]):|HOST\s*([12]):|(SPEAKER\s*[12]:))\s*(.+)', line, re.IGNORECASE)
+            if speaker_match:
+                # Get the first non-None group for speaker number
+                speaker = next(g for g in speaker_match.groups()[:3] if g is not None)
+                if speaker.isdigit():
+                    speaker_num = speaker
+                else:
+                    speaker_num = '1' if '1' in speaker else '2'
+                
+                text = speaker_match.group(4).strip()
                 text = self.clean_conversation_text(text)
                 
-                if text and len(text) >= 40:
-                    speaker = "1" if i % 2 == 0 else "2"
-                    conversation.append({
-                        "speaker": speaker,
+                if text and len(text.split()) >= self.config['EXCHANGE_LENGTH_MIN_WORDS']:
+                    exchanges.append({
+                        "speaker": speaker_num,
                         "text": text,
-                        "timestamp": f"0:{i:02d}"
+                        "timestamp": f"{len(exchanges)//2}:00"
                     })
+                    logging.debug(f"Added exchange {len(exchanges)}: Speaker {speaker_num}")
+        
+        exchange_count = len(exchanges)
+        if exchange_count > 0:
+            logging.info(f"Successfully generated {exchange_count} exchanges")
+        else:
+            logging.warning("No valid exchanges were generated")
+        
+        return exchanges
+
+    async def calculate_target_length(self, source_length: float) -> float:
+        """Calculate appropriate podcast length based on source content"""
+        
+        # Get settings
+        target_minutes = self.config['TARGET_LENGTH_MINUTES']
+        source_ratio = self.config['SOURCE_LENGTH_RATIO']
+        min_length = self.config['MIN_PODCAST_LENGTH']
+        max_length = self.config['MAX_PODCAST_LENGTH']
+        
+        # Calculate base length using ratio
+        source_minutes = source_length / 60
+        ratio_based_length = source_minutes * source_ratio
+        
+        # Adjust based on source length
+        if source_minutes < 20:
+            # For short content, use close to target length
+            target_length = target_minutes
+        elif source_minutes < 60:
+            # For medium content, scale gradually
+            target_length = min(target_minutes * 1.5, ratio_based_length)
+        else:
+            # For long content, use ratio but ensure good coverage
+            target_length = min(max_length, max(target_minutes * 2, ratio_based_length))
+        
+        # Ensure within bounds
+        target_length = max(min_length, min(target_length, max_length))
+        
+        # Use ASCII characters for logging
+        logging.info(f"Source: {source_minutes:.1f}m -> Target: {target_length:.1f}m (Ratio: {source_ratio:.2f})")
+        return target_length
+
+    async def generate_comprehensive_discussion(self, transcript: Dict) -> Dict:
+        """Generate a thorough podcast discussion with correct settings handling"""
+        
+        try:
+            # Calculate target length and exchanges
+            source_length = max(s['end'] for s in transcript['segments'])
+            target_length = await self.calculate_target_length(source_length)
             
-            if len(conversation) >= 6:
-                return {"conversation": conversation}
+            # Get settings from config instead of directly from env
+            coverage_style = os.getenv('COVERAGE_STYLE', 'comprehensive').lower()
+            fact_check_enabled = os.getenv('FACT_CHECK_ENABLED', 'true').lower() == 'true'
+            fact_check_style = os.getenv('FACT_CHECK_STYLE', 'balanced').lower()
+            
+            logging.info(f"Source length: {source_length/60:.1f}m | Target length: {target_length:.1f}m")
+            logging.info(f"Using {coverage_style} coverage style with fact checking {'enabled' if fact_check_enabled else 'disabled'}")
+            if fact_check_enabled:
+                logging.info(f"Fact check style: {fact_check_style}")
+            
+            # Calculate target exchanges
+            target_exchanges = min(
+                self.config['MAX_EXCHANGES'],
+                max(self.config['MIN_EXCHANGES'], 
+                    int((target_length * 150) / self.config['EXCHANGE_LENGTH_MAX_WORDS'])
+                )
+            )
+            
+            logging.info(f"Planning {target_exchanges} exchanges (max: {self.config['MAX_EXCHANGES']})")
+            
+            # Adjust content analysis based on coverage style
+            content_analysis_prompt = {
+                'humor': f"""
+                    Analyze this content with a light-hearted, entertaining approach:
+                    1. Find amusing angles or funny observations
+                    2. Identify potential jokes or witty remarks
+                    3. Look for ironic or absurd elements
+                    4. Spot opportunities for playful commentary
+                    5. Note any unintentionally funny moments
+                    
+                    Make it entertaining while still being informative.
+                    Focus on finding humor without being disrespectful.
+                    Content length: {source_length/60:.1f} minutes
+                    
+                    Content to analyze:
+                    {transcript['text']}
+                """,
+                'summary': f"""
+                    Provide a concise summary of the main points:
+                    1. Core message or thesis
+                    2. 3-4 key supporting points
+                    3. Most important evidence
+                    4. Main conclusions
+                    
+                    Focus on the most significant elements.
+                    Content length: {source_length/60:.1f} minutes
+                    
+                    Content to analyze:
+                    {transcript['text']}
+                """,
+                'highlights': f"""
+                    Extract the most interesting or notable points:
+                    1. Surprising or unique insights
+                    2. Strongest arguments
+                    3. Memorable examples
+                    4. Stand-out moments
+                    
+                    Focus on what makes this content distinctive.
+                    Content length: {source_length/60:.1f} minutes
+                    
+                    Content to analyze:
+                    {transcript['text']}
+                """,
+                'comprehensive': f"""
+                    Provide a detailed analysis of the entire content:
+                    1. All major topics and themes
+                    2. Key arguments and evidence
+                    3. Important details and examples
+                    4. Chronological progression
+                    5. Main conclusions
+                    
+                    Cover the entire content thoroughly, not just highlights.
+                    Content length: {source_length/60:.1f} minutes
+                    
+                    Content to analyze:
+                    {transcript['text']}
+                """
+            }.get(coverage_style, 'comprehensive')  # Fallback to comprehensive if invalid style
+            
+            # Generate content analysis
+            content_analysis = await self._generate_content_analysis(transcript, content_analysis_prompt)
+            
+            # Generate fact checks only if enabled
+            fact_checks = ""
+            if fact_check_enabled:
+                logging.info(f"Generating fact checks with {fact_check_style} style")
+                fact_check_prompt = {
+                    'balanced': """
+                        Analyze the content's accuracy objectively:
+                        - Verify key factual claims
+                        - Note both accurate and inaccurate statements
+                        - Provide corrections where needed
+                        - Add relevant context
+                        Balance praise and criticism.
+                    """,
+                    'critical': """
+                        Thoroughly examine all claims for accuracy:
+                        - Scrutinize every major assertion
+                        - Identify potential errors or misunderstandings
+                        - Provide detailed corrections
+                        - Note missing context
+                        Focus on improving accuracy.
+                    """,
+                    'supportive': """
+                        Review content accuracy constructively:
+                        - Verify main factual claims
+                        - Highlight accurate information
+                        - Gently note any needed corrections
+                        - Add helpful context
+                        Maintain a positive tone.
+                    """
+                }.get(fact_check_style, 'balanced')
                 
-            # Create basic conversation if needed
-            logging.warning("Creating basic conversation")
-            basic_convo = [
-                {
-                    "speaker": "1",
-                    "text": f"This content discusses {transcript['text'][:400].strip()}. Let's explore the main points.",
-                    "timestamp": "0:00"
-                },
-                {
-                    "speaker": "2",
-                    "text": f"One key aspect they covered was {transcript['text'][400:800].strip()}. This has interesting implications.",
-                    "timestamp": "0:01"
-                },
-                {
-                    "speaker": "1",
-                    "text": f"They also made an important point about {transcript['text'][800:1200].strip()}. It's worth examining further.",
-                    "timestamp": "0:02"
-                },
-                {
-                    "speaker": "2",
-                    "text": f"And looking at {transcript['text'][1200:1600].strip()}, we can see how this affects the bigger picture.",
-                    "timestamp": "0:03"
-                },
-                {
-                    "speaker": "1",
-                    "text": f"They also made an important point about {transcript['text'][1600:2000].strip()}. It's worth examining.",
-                    "timestamp": "0:04"
-                },
-                {
-                    "speaker": "2",
-                    "text": f"And looking at {transcript['text'][2000:2400].strip()}, we can see how this affects the topic.",
-                    "timestamp": "0:05"
-                }
-            ]
+                fact_checks = await self._generate_fact_checks(transcript['text'], fact_check_prompt)
+            else:
+                logging.info("Fact checking disabled")
             
-            return {"conversation": basic_convo}
+            # Calculate target exchanges
+            SPEECH_RATE = 150
+            words_per_exchange = (self.config['EXCHANGE_LENGTH_MIN_WORDS'] + self.config['EXCHANGE_LENGTH_MAX_WORDS']) // 2
+            target_exchanges = max(20, int((target_length * SPEECH_RATE) / words_per_exchange))
+            
+            logging.info(f"Source length: {source_length/60:.1f}m | Target length: {target_length:.1f}m")
+            logging.info(f"Using {coverage_style} coverage style with {fact_check_style} fact checking")
+            logging.info(f"Planning {target_exchanges} exchanges for target length")
+            
+            # Generate discussion with style-appropriate prompt
+            discussion_prompt = f"""
+            Create an informative discussion about this content.
+            Use {coverage_style} coverage style with {fact_check_style} approach to accuracy.
+
+            Important Rules:
+            - NO podcast names or introductions
+            - Start directly with content discussion
+            - Focus on the actual content
+            - Natural dialogue style
+            - {coverage_style.capitalize()} coverage of the material
+                
+                Required Format:
+                Speaker 1: [First point about the content]
+                Speaker 2: [Response and additional insight]
+                (continue alternating speakers)
+
+                Required Structure:
+                1. Content Discussion (90% of exchanges)
+                - Cover key points chronologically
+                - Include insights and analysis
+                - Address any corrections or clarifications
+                2. Brief Conclusion (10% of exchanges)
+                - Summarize main takeaways
+                - Final thoughts
+
+                Generate exactly {target_exchanges} total exchanges.
+                Each exchange should be {self.config['EXCHANGE_LENGTH_MIN_WORDS']}-{self.config['EXCHANGE_LENGTH_MAX_WORDS']} words.
+
+                Content to Discuss:
+                {content_analysis}
+
+                Fact Checks to Include:
+                {fact_checks}
+                """
+            
+            response = await self._make_ai_request(discussion_prompt, temperature=0.7)
+            cleaned_content = self._process_raw_response(str(response.content))
+            exchanges = self._extract_exchanges(cleaned_content)
+            
+            if len(exchanges) >= target_exchanges * 0.8:  # Allow some flexibility
+                return {"conversation": exchanges}
+                
+            # If first attempt didn't produce enough exchanges, try again with simpler prompt
+            logging.warning(f"First attempt only produced {len(exchanges)} exchanges, trying again")
+            
+            backup_prompt = f"""
+            Create a detailed discussion about this content.
+            Format exactly like this, with {target_exchanges} total exchanges:
+
+            Speaker 1: [Discussion point about the content]
+            Speaker 2: [Response and additional insight]
+            Speaker 1: [Follow-up point with new information]
+            Speaker 2: [Analysis and connection to other points]
+
+            Important:
+            - NO podcast names or introductions
+            - Start directly with content discussion
+            - Be specific and detailed
+            - Cover the entire source content
+            - Natural conversation style
+
+            Content:
+            {content_analysis}
+            """
+            
+            backup_response = await self._make_ai_request(backup_prompt, temperature=0.7)
+            backup_content = self._process_raw_response(str(backup_response.content))
+            backup_exchanges = self._extract_exchanges(backup_content)
+            
+            if len(backup_exchanges) >= target_exchanges * 0.8:
+                return {"conversation": backup_exchanges}
+                
+            # Use whichever attempt produced more exchanges
+            return {"conversation": exchanges if len(exchanges) > len(backup_exchanges) else backup_exchanges}
+
+        except Exception as e:
+            logging.error(f"Error in discussion generation: {str(e)}")
+            raise
+
+    async def _generate_content_analysis(self, transcript: Dict, prompt: str) -> str:
+        """Generate a focused content analysis"""
+        try:
+            response = await self._make_ai_request(prompt, temperature=0.3)
+            return str(response.content)
+        except Exception as e:
+            logging.error(f"Error generating content analysis: {str(e)}")
+            raise
+
+    async def _generate_fact_checks(self, content: str, fact_check_prompt: str) -> str:
+        """Generate fact checks with configurable style"""
+        try:
+            prompt = f"""
+            {fact_check_prompt}
+            
+            Content to analyze:
+            {content}
+            """
+            
+            response = await self._make_ai_request(prompt, temperature=0.3)
+            return str(response.content)
             
         except Exception as e:
-            logging.error(f"Error generating conversation: {str(e)}")
+            logging.error(f"Error generating fact checks: {e}")
+            return "Fact checking unavailable."
+
+    async def _make_ai_request(self, prompt: str, temperature: float = 0.7) -> any:
+        """Make an AI request with system message and robust error handling"""
+        try:
+            client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
+            response = client.messages.create(
+                model=self.config['MODEL_NAME'],
+                max_tokens=self.config['MAX_TOKENS'],
+                temperature=temperature,
+                system="Generate podcast discussion with alternating Speaker 1 and Speaker 2 lines.",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+            
+            content = str(response.content)
+            if not any(line.strip().startswith(('Speaker 1:', 'Speaker 2:')) for line in content.split('\n')):
+                logging.warning("Response does not contain proper speaker format, retrying...")
+                # Retry with more explicit prompt
+                response = client.messages.create(
+                    model=self.config['MODEL_NAME'],
+                    max_tokens=self.config['MAX_TOKENS'],
+                    temperature=temperature,
+                    system="You must format every line as 'Speaker 1:' or 'Speaker 2:' followed by their dialogue.",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": f"""
+                            Format EXACTLY like this:
+                            Speaker 1: [First line]
+                            Speaker 2: [Response]
+                            Speaker 1: [Next line]
+                            
+                            Content to discuss:
+                            {prompt}
+                            """
+                        }
+                    ]
+                )
+            
+            return response
+                
+        except Exception as e:
+            logging.error(f"AI request failed: {str(e)}")
             raise
+
+    async def _make_simple_ai_request(self, prompt: str, temperature: float = 0.7) -> any:
+        """Make a basic AI request without system message"""
+        try:
+            client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
+            response = client.messages.create(
+                model=self.config['MODEL_NAME'],
+                max_tokens=self.config['MAX_TOKENS'],
+                temperature=temperature,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+            return response
+            
+        except Exception as e:
+            logging.error(f"Simple AI request failed: {str(e)}")
+            raise
+
+    def clean_conversation_text(self, text: str) -> str:
+        """Clean and validate conversation text with better handling"""
+        if not text:
+            return ""
+        
+        try:
+            # Remove common formatting artifacts
+            text = text.replace('\\"', '"').replace('\\n', ' ')
+            text = re.sub(r'[*_~`]', '', text)
+            
+            # Split into sentences
+            sentences = []
+            for sentence in text.split('.'):
+                cleaned = sentence.strip()
+                if len(cleaned) >= 10:  # Minimum sentence length
+                    if not cleaned[-1] in '.!?':
+                        cleaned += '.'
+                    sentences.append(cleaned)
+            
+            if not sentences:
+                return ""
+            
+            # Join sentences with proper spacing
+            text = ' '.join(sentences)
+            
+            # Additional validation
+            words = text.split()
+            if len(words) < self.config['EXCHANGE_LENGTH_MIN_WORDS']:
+                logging.debug(f"Text too short ({len(words)} words): {text[:50]}...")
+                return ""
+                
+            if len(words) > self.config['EXCHANGE_LENGTH_MAX_WORDS']:
+                logging.debug(f"Trimming long text from {len(words)} words")
+                text = ' '.join(words[:self.config['EXCHANGE_LENGTH_MAX_WORDS']])
+                if not text[-1] in '.!?':
+                    text += '.'
+            
+            return text
+            
+        except Exception as e:
+            logging.error(f"Error cleaning text: {e}")
+            return ""
 
     async def generate_audio(self, conversation: Dict) -> List[str]:
         """Generate audio for each line of conversation"""
@@ -410,6 +702,7 @@ class PodcastAnalyzer:
                     response = requests.post(
                         f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
                         headers={"xi-api-key": self.config['ELEVENLABS_API_KEY']},
+                        timeout=60,
                         json={
                             "text": text,
                             "model_id": "eleven_monolingual_v1",
@@ -444,217 +737,6 @@ class PodcastAnalyzer:
         except Exception as e:
             logging.error(f"Error in audio generation: {str(e)}")
             return []
-
-    async def search_topic(self, topic: str) -> List[Dict]:
-        """Search the web for information about a topic with rate limiting"""
-        logging.info(f"Searching for topic: {topic}")
-        results = []
-        
-        try:
-            topic_str = str(topic).strip()
-            if not topic_str:
-                return results
-                
-            # Add delay to avoid rate limiting
-            await asyncio.sleep(2)
-            
-            from duckduckgo_search import AsyncDDGS
-            async with AsyncDDGS() as ddgs:
-                try:
-                    search_results = [r async for r in ddgs.text(
-                        topic_str, 
-                        max_results=2  # Reduced to avoid rate limiting
-                    )]
-                    
-                    for result in search_results:
-                        try:
-                            article = newspaper.Article(result['link'])
-                            article.download()
-                            article.parse()
-                            content = self.h2t.handle(article.text)[:2000]  # Limit content length
-                            
-                            results.append({
-                                'title': result['title'],
-                                'link': result['link'],
-                                'content': content,
-                                'source': urlparse(result['link']).netloc
-                            })
-                        except Exception as e:
-                            logging.warning(f"Failed to process article {result['link']}: {str(e)}")
-                            continue
-                            
-                except Exception as e:
-                    logging.warning(f"Search failed for topic '{topic_str}': {str(e)}")
-                    # Continue with AI fact-checking even if search fails
-                    
-        except Exception as e:
-            logging.error(f"Error in search_topic: {str(e)}")
-            
-        return results
-
-    def find_relevant_excerpt(self, text: str, topic: str) -> str:
-        """Find the most relevant excerpt from the transcript for a given topic"""
-        sentences = text.split('.')
-        topic_words = set(topic.lower().split())
-        
-        # Find the sentence with the most matching words
-        best_match = ""
-        max_matches = 0
-        
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if not sentence:
-                continue
-                
-            sentence_words = set(sentence.lower().split())
-            matches = len(topic_words.intersection(sentence_words))
-            
-            if matches > max_matches:
-                max_matches = matches
-                best_match = sentence
-        
-        if not best_match:
-            return "No direct reference found"
-        
-        return best_match
-
-    async def analyze_search_results(self, topic: str, search_results: List[Dict], transcript_excerpt: str) -> Dict:
-        """Compare search results with transcript claims using AI"""
-        prompt = f"""
-        Compare the following transcript excerpt with web search results about the topic.
-        Identify agreements, disagreements, and additional context.
-        
-        Topic: {topic}
-        
-        Transcript excerpt:
-        {transcript_excerpt}
-        
-        Search Results:
-        {json.dumps(search_results, indent=2)}
-        
-        Provide analysis in JSON format:
-        {{
-            "agreement": "what matches between sources",
-            "disagreement": "what conflicts between sources",
-            "additional_context": "important additional information",
-            "confidence": "high/medium/low based on source quality and consistency",
-            "sources": ["list of most relevant sources"]
-        }}
-        """
-        
-        if self.config['AI_PROVIDER'] == 'anthropic':
-            client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
-            response = client.messages.create(
-                model=self.config['MODEL_NAME'],
-                max_tokens=8192,
-                temperature=0.7,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return json.loads(response.content)
-        # Add similar handlers for OpenAI and Ollama
-
-
-    async def generate_extended_conversation(self, summary: str, fact_checks: List[Dict]) -> Dict:
-        """Generate a longer conversation when the first attempt is too short"""
-        prompt = f"""
-        Create a detailed back-and-forth dialogue discussing this content.
-        Make it natural and engaging, like two podcast hosts having a real conversation. Do not just repeat the transcript and speak in first person, summarize yourself.
-
-        The dialogue should include:
-        1. Introduction of the topic
-        2. Discussion of main points
-        3. Sharing of perspectives
-        4. Interesting observations
-        5. Relevant fact-checks or corrections
-        6. Final thoughts and conclusions
-
-        Generate EXACTLY 10 exchanges (20 lines total, alternating speakers).
-        Keep each line between 15-30 words.
-
-        Content:
-        {summary}
-
-        Format as:
-        Speaker 1: [First observation or point]
-        Speaker 2: [Response and new point]
-        (continue alternating 10 times)
-        """
-        
-        try:
-            client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
-            response = client.messages.create(
-                model=self.config['MODEL_NAME'],
-                max_tokens=8192,
-                temperature=0.7,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            
-            content = str(response.content)
-            lines = content.split('\n')
-            conversation = []
-            speaker = "1"
-            
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                    
-                # Clean up the line
-                text = re.sub(r'^(?:Speaker\s*)?[12]:\s*', '', line).strip()
-                
-                if text and len(text) >= 10 and len(text) <= 150:
-                    conversation.append({
-                        "speaker": speaker,
-                        "text": text,
-                        "timestamp": f"0:{len(conversation):02d}"
-                    })
-                    speaker = "2" if speaker == "1" else "1"
-                    
-            return {
-                "conversation": conversation,
-                "summary": {
-                    "content": summary,
-                    "factual_corrections": [
-                        f.get('analysis', {}).get('corrections', '')
-                        for f in fact_checks
-                        if f.get('analysis', {}).get('corrections')
-                    ]
-                }
-            }
-            
-        except Exception as e:
-            logging.error(f"Error generating extended conversation: {str(e)}")
-            return self.create_simple_conversation(summary)
-    
-    def create_simple_conversation(self, text: str) -> Dict:
-        """Create a basic conversation about the content"""
-        # Extract first meaningful sentence
-        first_sentence = next((s.strip() for s in text.split('.') if len(s.strip()) > 20), text[:100])
-        
-        return {
-            "conversation": [
-                {
-                    "speaker": "1",
-                    "text": f"I just listened to this interesting content about {first_sentence}",
-                    "timestamp": "0:00"
-                },
-                {
-                    "speaker": "2",
-                    "text": "What were the main points that stood out to you?",
-                    "timestamp": "0:05"
-                },
-                {
-                    "speaker": "1",
-                    "text": f"Well, one key point was about {text[200:400].split('.')[0]}",
-                    "timestamp": "0:10"
-                },
-                {
-                    "speaker": "2",
-                    "text": "That's interesting. What else did they discuss?",
-                    "timestamp": "0:15"
-                }
-            ]
-        }
 
 
     def load_voice_config(self):
@@ -765,6 +847,7 @@ async def main():
     parser = argparse.ArgumentParser(description='Podcast Analysis CLI')
     parser.add_argument('url', help='URL of the podcast to analyze')
     parser.add_argument('--no-audio', action='store_true', help='Skip audio generation')
+    parser.add_argument('--no-merge', action='store_true', help='Skip audio merging')
     args = parser.parse_args()
     
     analyzer = PodcastAnalyzer()
@@ -776,11 +859,18 @@ async def main():
         audio_path = await analyzer.download_podcast(args.url)
         logging.info(f"Downloaded audio to: {audio_path}")
         
-        # In main():
+        # Get full transcript
         transcript = await analyzer.transcribe_audio(audio_path)
-        fact_checks = await analyzer.fact_check_with_ai(transcript)
-        conversation = await analyzer.generate_conversation(transcript, fact_checks)
+        logging.info("Transcription complete")
         
+        # Generate comprehensive discussion
+        logging.info("Generating podcast discussion...")
+        try:
+            conversation = await analyzer.generate_comprehensive_discussion(transcript)
+        except Exception as e:
+            logging.error(f"Error in conversation generation: {str(e)}")
+            raise
+
         # Validate conversation
         if not conversation or not conversation.get('conversation'):
             logging.error("Failed to generate valid conversation")
@@ -791,18 +881,25 @@ async def main():
             return
         
         # Generate audio files
+        audio_files = []
         if not args.no_audio:
             logging.info("Generating audio files...")
             audio_files = await analyzer.generate_audio(conversation)
             
             if audio_files:
                 logging.info(f"Successfully generated {len(audio_files)} audio files:")
-                for audio_file in audio_files:
-                    print(f"- {os.path.basename(audio_file)}")
+                analyzer.display_audio_sequence(audio_files)
                 
-                # Display information about the generated files
-                print("\nAudio files have been generated in the output directory.")
-                print("Play them in numerical order for the complete conversation.")
+                # Merge audio files if generation was successful
+                if not args.no_merge and len(audio_files) > 0:
+                    logging.info("Merging audio files...")
+                    try:
+                        from merge_audio import merge_audio_files
+                        output_filename = f"merged_podcast_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
+                        merge_audio_files(analyzer.config['OUTPUT_DIR'], output_filename)
+                        logging.info(f"Successfully merged audio files into: {output_filename}")
+                    except Exception as e:
+                        logging.error(f"Error merging audio files: {str(e)}")
             else:
                 logging.error("No audio files were generated")
         
