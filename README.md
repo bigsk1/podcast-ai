@@ -7,21 +7,19 @@ A CLI tool that creates AI-generated podcast discussions from YouTube videos. It
 
 - Downloads YouTube videos/audio using yt-dlp
 - Transcribes audio using Faster Whisper
-- Generates natural conversations styles using Claude AI
-- Converts text to speech using ElevenLabs voices - have 2 voices talking about the youtube video
+- Generates natural conversations styles using Claude AI or XAI
+- Converts text to speech using ElevenLabs voices - have multiple voices talking about the youtube video
 - Fact-checks content using AI if enabled in .env
-- Generates audio files for each part of the conversation
+- Generates audio files for each part of the conversation on merges into one .mp3
 
 ## Prerequisites
-
-Tested in Windows 
 
 - Python 3.10+
 - GPU (CUDA) or CPU for local transcription, device selection is automatic.
 - FFmpeg installed and in PATH
 - Nvidia cuDNN installed to path (for nvidia gpu)
 - ElevenLabs API key
-- Anthropic (Claude) API key
+- Anthropic (Claude) or XAI API key
 - voices.json configuration file
 
 ## Installation
@@ -47,42 +45,39 @@ pip install -r requirements.txt
 
 4. Create .env file with your API keys:
 ```env
-# ELEVENLABS VOICE ID'S
-VOICE1=NYC9WEgkq1u4jiqBseQ9    # male
-VOICE2=b0uJ9TWzQss61d8f2OWX   # female
+# ELEVENLABS VOICE ID'S - add your own voice id's 
+VOICE1=111111111111       # male
+VOICE2=111111111111       # female
 
-
-# AI Model Settings
+# AI Model Settings - xai, anthropic
 AI_PROVIDER=anthropic
-ANTHROPIC_API_KEY=your_key_here
-MODEL_NAME=claude-3-5-sonnet-20241022
 
-# ELEVENLABS API
-ELEVENLABS_API_KEY=your_key_here
+# model name: grok-beta, claude-3-5-sonnet-latest
+MODEL_NAME=claude-3-5-sonnet-latest
 
 # Podcast Generation Settings
-MIN_EXCHANGES=4                    # Minimum number of back-and-forth exchanges - important setting
-MAX_EXCHANGES=20                   # Maximum number of exchanges                - important setting
+MIN_EXCHANGES=4                    # Minimum number of back-and-forth exchanges
+MAX_EXCHANGES=20                   # Maximum number of exchanges
 MIN_SENTENCES_PER_EXCHANGE=2       # Minimum sentences per speaker turn
 MAX_SENTENCES_PER_EXCHANGE=4       # Maximum sentences per speaker turn
 EXCHANGE_LENGTH_MIN_WORDS=20       # Minimum words per exchange
 EXCHANGE_LENGTH_MAX_WORDS=150      # Maximum words per exchange
 
 # Audio Length Control
-TARGET_LENGTH_MINUTES=3            # Target length for final podcast (in minutes)  - important setting
+TARGET_LENGTH_MINUTES=3            # Target length for final podcast (in minutes)
 LENGTH_FLEXIBILITY=0.2             # Allowed deviation from target (20% = ±36 seconds for 3 min target)
 SOURCE_LENGTH_RATIO=0.2            # Target output length as ratio of source (0.2 = 20% of original)
-MIN_PODCAST_LENGTH=2               # Minimum podcast length in minutes   - important setting
-MAX_PODCAST_LENGTH=10              # Maximum podcast length in minutes   - important setting
+MIN_PODCAST_LENGTH=2               # Minimum podcast length in minutes
+MAX_PODCAST_LENGTH=10              # Maximum podcast length in minutes
 
 # Audio Generation Settings
-MAX_CHARS_PER_VOICE=2000          # Maximum characters per voice clip
+MAX_CHARS_PER_VOICE=2000           # Maximum characters per voice clip
 PAUSE_BETWEEN_EXCHANGES=1          # Seconds of pause between exchanges
 
 # Content Coverage
-COVERAGE_STYLE=humor             # comprehensive, summary, or highlights, humor, emotional, debate
-FACT_CHECK_ENABLED=false         # Enable AI fact checking
-FACT_CHECK_STYLE=balanced        # balanced, critical, or supportive
+COVERAGE_STYLE=humor               # comprehensive, summary, or highlights, humor, emotional, debate
+FACT_CHECK_ENABLED=false           # Enable AI fact checking
+FACT_CHECK_STYLE=balanced          # balanced, critical, or supportive
 
 # Model Settings
 TEMPERATURE=0.7
@@ -92,6 +87,16 @@ LOGGING_LEVEL=DEBUG
 
 # Output Directory
 OUTPUT_DIR=output
+
+# ANTHROPIC API KEY
+ANTHROPIC_API_KEY=your_key_here
+
+# ELEVENLABS API KEY
+ELEVENLABS_API_KEY=your_key_here
+
+# For XAI
+XAI_BASE_URL=https://api.x.ai
+XAI_API_KEY=your_xai_key
 ```
 
 ## Usage

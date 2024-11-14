@@ -100,6 +100,8 @@ class PodcastAnalyzer:
             # Core Settings
             'AI_PROVIDER': os.getenv('AI_PROVIDER', 'anthropic'),
             'ANTHROPIC_API_KEY': os.getenv('ANTHROPIC_API_KEY'),
+            'XAI_API_KEY': os.getenv('XAI_API_KEY'),
+            'XAI_BASE_URL': os.getenv('XAI_BASE_URL', 'https://api.x.ai'),
             'MODEL_NAME': os.getenv('MODEL_NAME', 'claude-3-5-sonnet-20241022'),
             'OUTPUT_DIR': os.getenv('OUTPUT_DIR', 'output'),
             
@@ -136,6 +138,15 @@ class PodcastAnalyzer:
             'FACT_CHECK_STYLE': os.getenv('FACT_CHECK_STYLE', 'balanced').lower()
         
         }
+
+    def log_ai_provider_info(self):
+        """Log current AI provider configuration"""
+        provider = self.config['AI_PROVIDER'].lower()
+        model = self.config['MODEL_NAME']
+        logging.info(f"Using AI Provider: {provider.upper()}")
+        logging.info(f"Model: {model}")
+        if provider == 'xai':
+            logging.info(f"XAI Base URL: {self.config['XAI_BASE_URL']}")
 
     def safe_str(self, obj) -> str:
         """Safely convert any object to a string"""
@@ -484,6 +495,7 @@ class PodcastAnalyzer:
             Important Rules:
             - NO podcast names or introductions
             - Start directly with content discussion
+            - Provide a summary on the content DO NOT repeat word for word
             - Focus on the actual content
             - Natural dialogue style
             - {coverage_style.capitalize()} coverage of the material
@@ -534,6 +546,7 @@ class PodcastAnalyzer:
             Important:
             - NO podcast names or introductions
             - Start directly with content discussion
+            - Provide a summary on the content DO NOT repeat word for word
             - Be specific and detailed
             - Cover the entire source content
             - Natural conversation style
@@ -585,7 +598,16 @@ class PodcastAnalyzer:
     async def _make_ai_request(self, prompt: str, temperature: float = 0.7) -> any:
         """Make an AI request with system message and robust error handling"""
         try:
-            client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
+            # Initialize client based on provider
+            if self.config['AI_PROVIDER'].lower() == 'xai':
+                client = Anthropic(
+                    api_key=self.config['XAI_API_KEY'],
+                    base_url=self.config['XAI_BASE_URL']
+                )
+            else:
+                client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
+            
+            # Initial request with system message
             response = client.messages.create(
                 model=self.config['MODEL_NAME'],
                 max_tokens=self.config['MAX_TOKENS'],
@@ -627,13 +649,22 @@ class PodcastAnalyzer:
             return response
                 
         except Exception as e:
-            logging.error(f"AI request failed: {str(e)}")
+            provider = self.config['AI_PROVIDER'].lower()
+            logging.error(f"AI request failed for {provider}: {str(e)}")
             raise
 
     async def _make_simple_ai_request(self, prompt: str, temperature: float = 0.7) -> any:
         """Make a basic AI request without system message"""
         try:
-            client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
+            # Initialize client based on provider
+            if self.config['AI_PROVIDER'].lower() == 'xai':
+                client = Anthropic(
+                    api_key=self.config['XAI_API_KEY'],
+                    base_url=self.config['XAI_BASE_URL']
+                )
+            else:
+                client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
+                
             response = client.messages.create(
                 model=self.config['MODEL_NAME'],
                 max_tokens=self.config['MAX_TOKENS'],
@@ -646,9 +677,10 @@ class PodcastAnalyzer:
                 ]
             )
             return response
-            
+                
         except Exception as e:
-            logging.error(f"Simple AI request failed: {str(e)}")
+            provider = self.config['AI_PROVIDER'].lower()
+            logging.error(f"Simple AI request failed for {provider}: {str(e)}")
             raise
 
     def clean_conversation_text(self, text: str) -> str:
@@ -877,6 +909,9 @@ async def main():
     
     analyzer = PodcastAnalyzer()
     os.makedirs(analyzer.config['OUTPUT_DIR'], exist_ok=True)
+    
+    # Log AI provider info
+    analyzer.log_ai_provider_info()
     
     try:
         # Download and transcribe
