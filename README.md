@@ -1,4 +1,8 @@
-# AI Podcast Generator
+[![Python application](https://github.com/bigsk1/podcast-ai/actions/workflows/python-app.yml/badge.svg)](https://github.com/bigsk1/podcast-ai/actions/workflows/python-app.yml)
+[![License](https://img.shields.io/github/license/bigsk1/podcast-ai)](https://github.com/bigsk1/podcast-ai/blob/main/LICENSE)
+
+
+# AI Podcast Generator 🎙️
 
 
 A CLI tool that creates AI-generated podcast discussions from YouTube videos. It downloads videos, transcribes them, analyzes the content, and generates a natural conversation between two AI voices discussing the content.
