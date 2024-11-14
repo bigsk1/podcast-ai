@@ -17,7 +17,7 @@ A CLI tool that creates AI-generated podcast discussions from YouTube videos. It
 Tested in Windows 
 
 - Python 3.10+
-- Nvidia GPU for whisper (optional)
+- GPU (CUDA) or CPU for local transcription, device selection is automatic.
 - FFmpeg installed and in PATH
 - Nvidia cuDNN installed to path (for nvidia gpu)
 - ElevenLabs API key
