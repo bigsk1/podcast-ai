@@ -10,7 +10,7 @@ A CLI tool that creates AI-generated podcast discussions from YouTube videos. It
 - Generates natural conversations styles using Claude AI or XAI
 - Converts text to speech using ElevenLabs voices - have multiple voices talking about the youtube video
 - Fact-checks content using AI if enabled in .env
-- Generates audio files for each part of the conversation on merges into one .mp3
+- Generates audio files for each part of the conversation and merges into one .mp3
 
 ## Prerequisites
 
