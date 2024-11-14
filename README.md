@@ -80,7 +80,7 @@ MAX_CHARS_PER_VOICE=2000          # Maximum characters per voice clip
 PAUSE_BETWEEN_EXCHANGES=1          # Seconds of pause between exchanges
 
 # Content Coverage
-COVERAGE_STYLE=humor             # comprehensive, summary, or highlights, humor
+COVERAGE_STYLE=humor             # comprehensive, summary, or highlights, humor, emotional, debate
 FACT_CHECK_ENABLED=false         # Enable AI fact checking
 FACT_CHECK_STYLE=balanced        # balanced, critical, or supportive
 
@@ -147,6 +147,15 @@ Create a voices.json file with your ElevenLabs voice configurations:
 }
 ```
 ## Examples
+
+https://aicodelabs.io/emotional.mp3
+
+<audio controls>
+    <source src="https://aicodelabs.io/emotional.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+</audio>
+
+---
 
 https://aicodelabs.io/silo.mp3
 

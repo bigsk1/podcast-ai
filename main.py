@@ -344,6 +344,34 @@ class PodcastAnalyzer:
             
             # Adjust content analysis based on coverage style
             content_analysis_prompt = {
+                'emotional': f"""
+                    Have the speakers discuss the content with emotional depth and expressiveness:
+                    1. Use empathetic, passionate, or intense language to convey engagement with the content
+                    2. Infuse excitement, concern, or other strong feelings as relevant to the subject matter
+                    3. Let the speakers' tone reflect emotions that enhance connection with the audience
+                    4. Emphasize points that are likely to stir emotions in listeners
+                    5. Aim to make the discussion feel genuine and heartfelt, you are personally moved by the content
+                    
+                    This is not an analysis of emotional elements in the content but rather an emotionally expressive delivery about it.
+                    Content length: {source_length/60:.1f} minutes
+                    
+                    Content to discuss:
+                    {transcript['text']}
+                """,
+                'debate': f"""
+                    Analyze the content from a debate perspective:
+                    1. Identify key arguments and counterarguments
+                    2. Outline both supporting using Speaker 1 and opposing evidence using Speaker 2
+                    3. Present potential points of agreement or compromise
+                    4. Highlight any contradictions or controversial points
+                    5. Evaluate the strength of each argument and provide a final verdict
+                    
+                    Focus on creating a balanced yet critical examination.
+                    Content length: {source_length/60:.1f} minutes
+                    
+                    Content to analyze:
+                    {transcript['text']}
+                """,
                 'humor': f"""
                     Analyze this content with a light-hearted, entertaining approach:
                     1. Find amusing angles or funny observations
@@ -423,7 +451,7 @@ class PodcastAnalyzer:
                         - Identify potential errors or misunderstandings
                         - Provide detailed corrections
                         - Note missing context
-                        Focus on improving accuracy.
+                        Focus on improving accuracy and explain what is false and what is truth.
                     """,
                     'supportive': """
                         Review content accuracy constructively:
@@ -445,7 +473,7 @@ class PodcastAnalyzer:
             target_exchanges = max(20, int((target_length * SPEECH_RATE) / words_per_exchange))
             
             logging.info(f"Source length: {source_length/60:.1f}m | Target length: {target_length:.1f}m")
-            logging.info(f"Using {coverage_style} coverage style with {fact_check_style} fact checking")
+            logging.info(f"Using {coverage_style} coverage style")
             logging.info(f"Planning {target_exchanges} exchanges for target length")
             
             # Generate discussion with style-appropriate prompt
