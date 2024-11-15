@@ -103,6 +103,8 @@ XAI_BASE_URL=https://api.x.ai
 XAI_API_KEY=your_xai_key
 ```
 
+5. Change voice.json.example to voice.json and add your voice names and id's from elevenlabs, this is a collection that you want to use, set the current voice id in the .env when running the app.
+
 ## Usage
 
 Basic usage:
