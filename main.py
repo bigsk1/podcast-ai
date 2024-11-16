@@ -117,8 +117,6 @@ class PodcastAnalyzer:
             # Podcast Generation Settings
             'MIN_EXCHANGES': int(os.getenv('MIN_EXCHANGES', '4')),
             'MAX_EXCHANGES': int(os.getenv('MAX_EXCHANGES', '20')),
-            'MIN_SENTENCES_PER_EXCHANGE': int(os.getenv('MIN_SENTENCES_PER_EXCHANGE', '2')),
-            'MAX_SENTENCES_PER_EXCHANGE': int(os.getenv('MAX_SENTENCES_PER_EXCHANGE', '4')),
             'EXCHANGE_LENGTH_MIN_WORDS': int(os.getenv('EXCHANGE_LENGTH_MIN_WORDS', '20')),
             'EXCHANGE_LENGTH_MAX_WORDS': int(os.getenv('EXCHANGE_LENGTH_MAX_WORDS', '100')),
             
@@ -127,10 +125,6 @@ class PodcastAnalyzer:
             'SOURCE_LENGTH_RATIO': float(os.getenv('SOURCE_LENGTH_RATIO', '0.2')),
             'MIN_PODCAST_LENGTH': float(os.getenv('MIN_PODCAST_LENGTH', '2')),
             'MAX_PODCAST_LENGTH': float(os.getenv('MAX_PODCAST_LENGTH', '10')),
-            
-            # Audio Settings
-            'MAX_CHARS_PER_VOICE': int(os.getenv('MAX_CHARS_PER_VOICE', '2000')),
-            'PAUSE_BETWEEN_EXCHANGES': float(os.getenv('PAUSE_BETWEEN_EXCHANGES', '1')),
             
             # Content Settings
             'COVERAGE_STYLE': os.getenv('COVERAGE_STYLE', 'comprehensive').lower(),
@@ -412,7 +406,7 @@ class PodcastAnalyzer:
                     {transcript['text']}
                 """,
                 'highlights': f"""
-                    Extract the most interesting or notable points:
+                    Analyze the content and highlight the most interesting or notable points:
                     1. Surprising or unique insights
                     2. Strongest arguments
                     3. Memorable examples
@@ -612,7 +606,7 @@ class PodcastAnalyzer:
                 model=self.config['MODEL_NAME'],
                 max_tokens=self.config['MAX_TOKENS'],
                 temperature=temperature,
-                system="Generate podcast discussion with alternating Speaker 1 and Speaker 2 lines.",
+                system="Generate podcast discussion with alternating Speaker 1: and Speaker 2: lines.",
                 messages=[
                     {
                         "role": "user",
