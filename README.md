@@ -5,7 +5,7 @@
 # AI Podcast Generator 🎙️
 
 
-A CLI tool that creates AI-generated podcast discussions from YouTube videos. It downloads videos, transcribes them, analyzes the content, and generates a natural conversation between two AI voices discussing the content.
+A CLI tool that creates AI-generated podcast discussions from YouTube videos. It downloads videos, transcribes them, analyzes the content, and generates a natural conversation between two AI voices discussing the content. Works on Windows and Linux
 
 ## Features
 
@@ -102,6 +102,20 @@ XAI_API_KEY=your_xai_key
 ```
 
 5. Change voice.json.example to voice.json and add your voice names and id's from elevenlabs, this is a collection that you want to use, set the current voice id in the .env when running the app.
+
+
+6. Make sure you have ffmpeg installed 
+
+Windows 
+
+```bash
+winget install ffmpeg
+```
+
+Linux
+```bash
+sudo apt install ffmpeg
+```
 
 ## Usage
 
