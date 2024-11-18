@@ -95,3 +95,13 @@ dmypy.json
 # System Files
 .DS_Store
 Thumbs.db
+
+__pycache__/
+*.pyc
+.env
+.venv
+env/
+venv/
+ENV/
+public/audio/*
+!public/audio/.gitkeep

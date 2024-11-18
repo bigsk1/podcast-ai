@@ -10,18 +10,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def merge_audio_files(directory: str, output_file: str = "merged_conversation.mp3"):
     """Merge all audio segments in order"""
     try:
-        # Get all mp3 files
+        # Get all mp3 files from the specified directory
         audio_files = glob.glob(os.path.join(directory, "segment_*_speaker*.mp3"))
         
         if not audio_files:
-            print("No audio files found in directory!")
-            return
+            logging.error(f"No audio files found in directory: {directory}")
+            logging.info(f"Directory contents: {os.listdir(directory)}")
+            raise Exception("No audio files found for merging")
             
         # Sort files by segment number
         audio_files.sort(key=lambda x: int(re.search(r'segment_(\d+)_', os.path.basename(x)).group(1)))
         
-        print(f"Found {len(audio_files)} audio files to merge")
-        print("\nProcessing sequence:")
+        logging.info(f"Found {len(audio_files)} audio files to merge")
+        logging.info("\nProcessing sequence:")
         
         # Create merged audio
         merged = AudioSegment.empty()
@@ -31,7 +32,7 @@ def merge_audio_files(directory: str, output_file: str = "merged_conversation.mp
             segment_num = re.search(r'segment_(\d+)_', filename).group(1)
             speaker_num = re.search(r'speaker(\d)', filename).group(1)
             
-            print(f"Adding segment {segment_num} (Speaker {speaker_num}): {filename}")
+            logging.info(f"Adding segment {segment_num} (Speaker {speaker_num}): {filename}")
             
             # Load audio segment
             audio = AudioSegment.from_mp3(file)
@@ -50,14 +51,15 @@ def merge_audio_files(directory: str, output_file: str = "merged_conversation.mp
         output_path = os.path.join(directory, output_file)
         merged.export(output_path, format="mp3")
         
-        print(f"\nSuccessfully created merged audio file:")
-        print(f"- Output: {output_file}")
-        print(f"- Total segments: {len(audio_files)}")
-        print(f"- Total length: {len(merged)/1000:.1f} seconds")
+        logging.info(f"\nSuccessfully created merged audio file:")
+        logging.info(f"- Output: {output_file}")
+        logging.info(f"- Total segments: {len(audio_files)}")
+        logging.info(f"- Total length: {len(merged)/1000:.1f} seconds")
         
     except Exception as e:
-        print(f"Error merging audio files: {str(e)}")
+        logging.error(f"Error merging audio files: {str(e)}")
         logging.error(f"Error details: {str(e)}", exc_info=True)
+        raise e
 
 def main():
     """Main function to handle command line arguments"""

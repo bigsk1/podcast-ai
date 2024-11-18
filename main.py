@@ -948,7 +948,7 @@ async def main():
                 if not args.no_merge and len(audio_files) > 0:
                     logging.info("Merging audio files...")
                     try:
-                        from merge_audio import merge_audio_files
+                        from merge_audio_cli import merge_audio_files
                         output_filename = f"merged_podcast_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
                         merge_audio_files(analyzer.config['OUTPUT_DIR'], output_filename)
                         logging.info(f"Successfully merged audio files into: {output_filename}")
