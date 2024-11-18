@@ -260,11 +260,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## In Progress
 
-1. Getting audio clips longer
-2. Audio covers more of the transcript and youtube conversation
-3. Adding Openai 
-4. Adding ollama
-5. Add web search into fact checking of podcast
+1. Adding Openai 
+2. Adding ollama
+3. Add web search into fact checking of podcast
+4. Add youtube API and add a search feature in header and seperate page for one click podcast generation
 
 ## Troubleshooting
 
