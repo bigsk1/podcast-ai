@@ -4,49 +4,55 @@
 
 # AI Podcast Generator 🎙️
 
+An AI-powered tool that transforms YouTube videos into engaging podcast discussions. Features a modern web interface for easy use and optional CLI functionality. Downloads videos, transcribes them, and generates natural conversations between AI voices discussing the content.
 
-A CLI tool that creates AI-generated podcast discussions from YouTube videos. It downloads videos, transcribes them, analyzes the content, and generates a natural conversation between two AI voices discussing the content. Works on Windows and Linux
+
+
+![AI Podcast UI Screenshot](public/podcast.jpg)
 
 ## Features
 
-- Downloads YouTube videos/audio using yt-dlp
-- Transcribes audio using Faster Whisper
-- Generates natural conversations styles using Claude AI or XAI
-- Converts text to speech using ElevenLabs voices - have multiple voices talking about the youtube video
-- Fact-checks content using AI if enabled in .env
-- Generates audio files for each part of the conversation and merges into one .mp3
+- 🎯 Modern web interface for easy podcast generation
+- 🎥 Embedded YouTube video player
+- 🔊 Interactive audio player for generated podcasts
+- 💾 History tracking of processed videos
+- 🤖 Natural conversation generation using Claude AI or XAI
+- 🗣️ Multiple AI voices using ElevenLabs
+- ⚡ Real-time processing status updates
+- 📝 Optional fact-checking of content
 
 ## Prerequisites
 
+
+- Node.js 18+ and npm
 - Python 3.10+
 - GPU (CUDA) or CPU for local transcription, device selection is automatic.
 - FFmpeg installed and in PATH
 - Nvidia cuDNN installed to path (for nvidia gpu)
 - ElevenLabs API key
 - Anthropic (Claude) or XAI API key
-- voices.json configuration file
+
 
 ## Installation
 
-1. Clone the repository
-
+1. Clone the repository:
 ```bash
 git clone https://github.com/bigsk1/podcast-ai.git
 cd podcast-ai
 ```
 
-2. Create and activate virtual environment
+2. Install frontend dependencies:
+```bash
+npm install
+```
 
+3. Set up Python environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # or
-venv\Scripts\activate  # Windows
-```
+venv\Scripts\activate     # Windows
 
-3. Install dependencies
-
-```bash
 pip install -r requirements.txt
 ```
 
@@ -99,6 +105,9 @@ ELEVENLABS_API_KEY=your_key_here
 # For XAI
 XAI_BASE_URL=https://api.x.ai
 XAI_API_KEY=your_xai_key
+
+# Frontend configuration
+VITE_API_URL=http://localhost:5000
 ```
 
 5. Change voice.json.example to voice.json and add your voice names and id's from elevenlabs, this is a collection that you want to use, set the current voice id in the .env when running the app.
@@ -119,56 +128,50 @@ sudo apt install ffmpeg
 
 ## Usage
 
-Basic usage:
+### Web Interface (Recommended)
+
+1. Start the backend server in one terminal:
 ```bash
+python api.py
+```
+
+2. Start the frontend development server in another terminal:
+```bash
+npm run dev
+```
+
+3. Open http://localhost:5173 in your browser
+
+4. Paste a YouTube URL and click "Generate AI Podcast Review"
+
+### CLI Version (Optional)
+
+The tool can also be used from the command line:
+
+```bash
+# Basic usage
 python main.py "https://www.youtube.com/watch?v=video_id"
-```
 
-Skip audio generation:
-```bash
+# Skip audio generation
 python main.py --no-audio "https://www.youtube.com/watch?v=video_id"
-```
 
-Generate but don't merge:
-```bash
+# Generate without merging
 python main.py --no-merge "https://www.youtube.com/watch?v=video_id"
+
+# Merge audio files manually
+python merge_audio_cli.py output conversation.mp3
 ```
 
 ## Output
 
-The tool generates:
-- Transcription of the video
-- AI-generated conversation about the content with your selected voices
-- Audio files for each part of the conversation + auto merge when finished
-- Fact-checking analysis (if enabled)
-- Min and Max length of audio podcast clips
+Generated files are saved in:
+- UI version: `public/audio/` directory
+- CLI version: `output/` directory
 
-Output files are saved in the `output` directory.
+## Configuration Options
 
-to merge all audio files to one audio file manually
+All configuration options are set through the .env file. See the sample .env file above for common settings.
 
-```bash
-python merge_audio.py output conversation.mp3 
-```
-
-## Configuration
-
-### voices.json
-Create a voices.json file with your ElevenLabs voice configurations:
-```json
-{
-    "voices": [
-        {
-            "id": "voice_id_1",
-            "name": "Voice 1 Name"
-        },
-        {
-            "id": "voice_id_2",
-            "name": "Voice 2 Name"
-        }
-    ]
-}
-```
 ## Examples
 
 https://aicodelabs.io/emotional.mp3

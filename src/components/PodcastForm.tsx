@@ -1,25 +1,31 @@
 import { useState } from 'react';
 import { Youtube } from 'lucide-react';
 
-export default function PodcastForm({ onSubmit }: { onSubmit: (url: string) => void }) {
-  const [url, setUrl] = useState('');
+interface PodcastFormProps {
+  onSubmit: (url: string) => void;
+  disabled?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export default function PodcastForm({ onSubmit, disabled, value, onChange }: PodcastFormProps) {
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!url.trim()) {
+    if (!value.trim()) {
       setError('Please enter a YouTube URL');
       return;
     }
 
-    if (!url.includes('youtube.com/watch?v=') && !url.includes('youtu.be/')) {
+    if (!value.includes('youtube.com/watch?v=') && !value.includes('youtu.be/')) {
       setError('Please enter a valid YouTube URL');
       return;
     }
 
     setError('');
-    onSubmit(url);
+    onSubmit(value);
   };
 
   return (
@@ -30,10 +36,11 @@ export default function PodcastForm({ onSubmit }: { onSubmit: (url: string) => v
         </div>
         <input
           type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           placeholder="Paste YouTube URL here..."
           className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+          disabled={disabled}
         />
       </div>
       {error && (
@@ -41,7 +48,8 @@ export default function PodcastForm({ onSubmit }: { onSubmit: (url: string) => v
       )}
       <button
         type="submit"
-        className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+        disabled={disabled}
+        className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
       >
         Generate AI Podcast Review
       </button>
