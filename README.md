@@ -8,7 +8,7 @@ An AI-powered tool that transforms YouTube videos into engaging podcast discussi
 
 
 
-![AI Podcast UI Screenshot](public/podcast.jpg)
+![AI Podcast UI Screenshot](public/podcast2.jpg)
 
 ## Features
 
@@ -47,19 +47,24 @@ npm install
 ```
 
 3. Set up Python environment and install dependencies:
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # or
 venv\Scripts\activate     # Windows
+```
 
+Install requirements
+
+```bash
 pip install -r requirements.txt
 ```
 
 4. Create .env file with your API keys:
 
 ```env
-# ELEVENLABS VOICE ID'S - add your own voice id's 
+# ELEVENLABS VOICE ID'S - add your own voice id's get from your Elevenlabs account
 VOICE1=111111111111       # male
 VOICE2=111111111111       # female
 
