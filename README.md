@@ -46,7 +46,7 @@ cd podcast-ai
 npm install
 ```
 
-3. Set up Python environment:
+3. Set up Python environment and install dependencies:
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac

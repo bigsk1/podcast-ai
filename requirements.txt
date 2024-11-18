@@ -1,8 +1,19 @@
+# Core Processing
+faster-whisper==0.10.0
+yt-dlp==2024.3.10
+pydub==0.25.1
+
+# AI and APIs
+anthropic==0.19.1
+requests==2.31.0
+
+# Web Backend (for UI)
 fastapi==0.110.0
 uvicorn==0.27.1
 python-multipart==0.0.9
 pydantic==2.6.3
-yt-dlp==2024.3.10
-pydub==0.25.1
-python-dotenv==1.0.1
 aiofiles==23.2.1
+
+# Utilities
+python-dotenv==1.0.1
+html2text==2024.2.26
