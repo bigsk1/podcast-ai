@@ -69,6 +69,10 @@ async def get_status(job_id: str):
         "error": job["error"]
     }
 
+@app.get("/health")
+async def health_check():
+    return JSONResponse({"status": "healthy"})
+
 if __name__ == "__main__":
     # Configure uvicorn to ignore output and public/audio directories
     config = uvicorn.Config(

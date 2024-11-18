@@ -1,0 +1,47 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv
+env
+.env
+*.log
+
+# Node.js
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist
+build
+output
+public/audio/*
+!public/audio/.gitkeep
+
+# Development
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# Project specific
+podcast_analyzer.log
+README.md
+LICENSE
+*.mp3
+*.m4a
+*.wav
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore

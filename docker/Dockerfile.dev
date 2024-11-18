@@ -1,0 +1,60 @@
+# Use Node 18 as base image (includes newer Ubuntu)
+FROM node:18-bullseye
+
+# Install Python and other dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    python3-venv \
+    ffmpeg \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavfilter-dev \
+    libswscale-dev \
+    libswresample-dev \
+    libavutil-dev \
+    pkg-config \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Set Python to use venv
+ENV VIRTUAL_ENV=/app/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Copy package files first
+COPY ../package*.json ./
+
+# Install Node.js dependencies
+RUN npm install
+
+# Copy Python requirements and install
+COPY ../requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY .. .
+
+# Create necessary directories
+RUN mkdir -p public/audio output
+
+# Create entrypoint script
+RUN echo '#!/bin/bash\n\
+# Start the FastAPI backend\n\
+python3 -m uvicorn api:app --host 0.0.0.0 --port 5000 --reload & \n\
+# Start the frontend\n\
+npm run dev -- --host 0.0.0.0 -- --port 5173 & \n\
+# Keep the container running\n\
+tail -f /dev/null\n' > /entrypoint.sh && \
+chmod +x /entrypoint.sh
+
+# Expose ports
+EXPOSE 5000 5173
+
+# Set entrypoint
+ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]

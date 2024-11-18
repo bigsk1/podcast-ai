@@ -1,6 +1,6 @@
 [![Python application](https://github.com/bigsk1/podcast-ai/actions/workflows/python-app.yml/badge.svg)](https://github.com/bigsk1/podcast-ai/actions/workflows/python-app.yml)
 [![License](https://img.shields.io/github/license/bigsk1/podcast-ai)](https://github.com/bigsk1/podcast-ai/blob/main/LICENSE)
-
+![Docker support](https://img.shields.io/badge/docker-supported-blue)
 
 # AI Podcast Generator 🎙️
 
@@ -171,6 +171,40 @@ Generated files are saved in:
 ## Configuration Options
 
 All configuration options are set through the .env file. See the sample .env file above for common settings.
+
+
+## Docker Setup 🐳
+
+You can run the application using Docker with these simple steps:
+
+1. Clone the repository and navigate to it:
+
+```bash
+git clone https://github.com/bigsk1/podcast-ai.git
+cd podcast-ai
+```
+
+2. Create your .env file with required API keys 
+
+3. Using Docker Compose:
+
+```bash
+cd docker
+docker-compose up -d --build
+```
+
+The application will be available at:
+- Frontend UI: http://localhost:5173
+- Backend API: http://localhost:5000
+
+To stop the container:
+
+```bash
+docker-compose down
+```
+
+Note: Generated audio files will be available in the `public/audio` directory, just like in the standard setup.
+
 
 ## Examples
 
