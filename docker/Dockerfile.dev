@@ -1,11 +1,12 @@
-# Use Node 18 as base image (includes newer Ubuntu)
 FROM node:18-bullseye
 
-# Install Python and other dependencies
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3.10 \
+    python3 \
     python3-pip \
-    python3-venv \
     ffmpeg \
     libavformat-dev \
     libavcodec-dev \
@@ -21,11 +22,6 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Set Python to use venv
-ENV VIRTUAL_ENV=/app/venv
-RUN python3 -m venv $VIRTUAL_ENV
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
 # Copy package files first
 COPY ../package*.json ./
 
@@ -34,8 +30,10 @@ RUN npm install
 
 # Copy Python requirements and install
 COPY ../requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+
+# Install Python dependencies globally
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY .. .
@@ -48,12 +46,12 @@ RUN echo '#!/bin/bash\n\
 # Start the FastAPI backend\n\
 python3 -m uvicorn api:app --host 0.0.0.0 --port 5000 --reload & \n\
 # Start the frontend\n\
-npm run dev -- --host 0.0.0.0 -- --port 5173 & \n\
+npm run dev -- --host 0.0.0.0 --port 5173 & \n\
 # Keep the container running\n\
 tail -f /dev/null\n' > /entrypoint.sh && \
 chmod +x /entrypoint.sh
 
-# Expose ports
+# Expose both ports
 EXPOSE 5000 5173
 
 # Set entrypoint
