@@ -1,0 +1,103 @@
+# to use your nvidia gpu for whipser transcription run docker compose -f cuda.docker-compose.yml up -d --build
+# Use NVIDIA CUDA base image with cudnn that matches your host
+FROM nvidia/cuda:12.6.2-cudnn-runtime-ubuntu24.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Node.js and Python dependencies
+RUN apt-get update && apt-get install -y curl \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ffmpeg \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavfilter-dev \
+    libswscale-dev \
+    libswresample-dev \
+    libavutil-dev \
+    pkg-config \
+    git \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set CUDA environment variables
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}:/usr/lib/x86_64-linux-gnu
+
+# Set working directory
+WORKDIR /app
+
+# Create virtual environment directly in the image
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Verify environments
+RUN echo "Python version: $(python --version)" && \
+    echo "Pip version: $(pip --version)" && \
+    echo "Node version: $(node --version)" && \
+    echo "CUDA libraries:" && \
+    ls -l /usr/lib/x86_64-linux-gnu/libcudnn*
+
+# Copy package files first
+COPY ../package*.json ./
+
+# Install Node.js dependencies
+RUN npm install
+
+# Copy Python requirements and install
+COPY ../requirements.txt ./
+
+# Install Python dependencies in virtual environment
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY .. .
+
+# Create necessary directories
+RUN mkdir -p public/audio output
+
+# Create entrypoint script with explicit paths
+RUN echo '#!/bin/bash\n\
+# Activate virtual environment\n\
+source /opt/venv/bin/activate\n\
+\n\
+echo "Checking GPU environment..."\n\
+\n\
+# Check NVIDIA GPU\n\
+if command -v nvidia-smi &> /dev/null; then\n\
+    echo "=== GPU Information ==="\n\
+    nvidia-smi\n\
+    echo "\n=== CUDA Environment ==="\n\
+    echo "CUDA_HOME: $CUDA_HOME"\n\
+    echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"\n\
+    echo "\n=== Python Environment ==="\n\
+    which python\n\
+    python --version\n\
+    echo "\n=== Using GPU for processing ==="\n\
+    export CUDA_VISIBLE_DEVICES=0\n\
+else\n\
+    echo "No NVIDIA GPU detected, falling back to CPU"\n\
+    export CUDA_VISIBLE_DEVICES=-1\n\
+fi\n\
+\n\
+# Start the FastAPI backend with explicit path\n\
+/opt/venv/bin/python -m uvicorn api:app --host 0.0.0.0 --port 5000 --reload & \n\
+\n\
+# Start the frontend\n\
+npm run dev -- --host 0.0.0.0 --port 5173 & \n\
+\n\
+# Keep the container running\n\
+tail -f /dev/null\n' > /entrypoint.sh && \
+chmod +x /entrypoint.sh
+
+# Expose ports
+EXPOSE 5000 5173
+
+# Set entrypoint
+ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]

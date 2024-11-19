@@ -1,0 +1,44 @@
+services:
+  podcast-app:
+    container_name: podcast-app-gpu
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cuda
+    runtime: nvidia
+    ports:
+      - "5000:5000"
+      - "5173:5173"
+    volumes:
+      - ../:/app
+      - /app/node_modules
+      - ../public/audio:/app/public/audio
+      - ../output:/app/output
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - HOST=0.0.0.0
+      - PORT=5000
+      - VITE_API_URL=http://localhost:5000
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - podcast-network-gpu
+
+networks:
+  podcast-network-gpu:
+    name: podcast-network-gpu-${COMPOSE_PROJECT_NAME:-default}
+    driver: bridge
