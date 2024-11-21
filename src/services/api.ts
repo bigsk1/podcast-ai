@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Dynamically determine API URL based on current hostname
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  `http://${window.location.hostname}:5000`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
