@@ -210,6 +210,12 @@ docker-compose down
 
 Note: Generated audio files will be available in the `public/audio` directory, just like in the standard setup.
 
+### Docker with Cuda for faster transcription
+
+```bash
+docker compose -f cuda.docker-compose.yml up -d --build
+```
+
 
 ## Examples
 
