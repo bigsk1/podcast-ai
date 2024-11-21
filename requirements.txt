@@ -1,6 +1,6 @@
 # Core Processing
 faster-whisper==0.10.0
-yt-dlp==2024.3.10
+yt-dlp[default]
 pydub==0.25.1
 
 # AI and APIs
