@@ -216,7 +216,7 @@ Generated files are saved in:
 
 ## Configuration Options
 
-All configuration options are set through the .env file. See the sample .env file above for common settings.
+All configuration options are set through the .env file. See the sample .env file above for common settings. Also make sure you have your elevenlabs voice id's. The provided example voice id's in voices.json won't work for you, each account has it's own specific id's to match there api key. 
 
 
 ## Examples
