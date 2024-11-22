@@ -1,6 +1,9 @@
 [![Python application](https://github.com/bigsk1/podcast-ai/actions/workflows/python-app.yml/badge.svg)](https://github.com/bigsk1/podcast-ai/actions/workflows/python-app.yml)
 [![License](https://img.shields.io/github/license/bigsk1/podcast-ai)](https://github.com/bigsk1/podcast-ai/blob/main/LICENSE)
 ![Docker support](https://img.shields.io/badge/docker-supported-blue)
+[![Check it out on Twitter](https://img.shields.io/badge/Twitter-Video-blue?style=flat-square)](https://twitter.com/bigsk1_com/status/1859603611296412020)
+
+
 
 # AI Podcast Generator 🎙️
 
@@ -26,14 +29,52 @@ An AI-powered tool that transforms YouTube videos into engaging podcast discussi
 
 - Node.js 18+ and npm
 - Python 3.10+
-- GPU (CUDA) or CPU for local transcription, device selection is automatic.
 - FFmpeg installed and in PATH
-- Nvidia cuDNN installed to path (for nvidia gpu)
 - ElevenLabs API key
 - Anthropic (Claude) or XAI API key
 
+## Quick Start
 
-## Installation
+## Docker Setup 🐳 ( Recommended )
+
+You can run the application using Docker with these simple steps:
+
+1. Clone the repository and navigate to it:
+
+```bash
+git clone https://github.com/bigsk1/podcast-ai.git
+cd podcast-ai
+```
+
+2. Create your .env file with required API keys and settings 
+
+3. Using Docker Compose:
+
+```bash
+cd docker
+docker-compose up -d --build
+```
+
+The application will be available at:
+- Frontend UI: http://localhost:5173
+
+To stop the container:
+
+```bash
+docker-compose down
+```
+
+Note: Generated audio files will be available in the `public/audio` directory, just like in the standard setup.
+
+### Docker with Cuda for faster transcription on Nvidia GPU
+
+Note: This is only slightly faster as the transcription can go pretty quick anyway on cpu
+```bash
+docker compose -f cuda.docker-compose.yml up -d --build
+```
+
+
+## Installation - Windows / Ubuntu
 
 1. Clone the repository:
 ```bash
@@ -178,46 +219,10 @@ Generated files are saved in:
 All configuration options are set through the .env file. See the sample .env file above for common settings.
 
 
-## Docker Setup 🐳
-
-You can run the application using Docker with these simple steps:
-
-1. Clone the repository and navigate to it:
-
-```bash
-git clone https://github.com/bigsk1/podcast-ai.git
-cd podcast-ai
-```
-
-2. Create your .env file with required API keys 
-
-3. Using Docker Compose:
-
-```bash
-cd docker
-docker-compose up -d --build
-```
-
-The application will be available at:
-- Frontend UI: http://localhost:5173
-- Backend API: http://localhost:5000
-
-To stop the container:
-
-```bash
-docker-compose down
-```
-
-Note: Generated audio files will be available in the `public/audio` directory, just like in the standard setup.
-
-### Docker with Cuda for faster transcription
-
-```bash
-docker compose -f cuda.docker-compose.yml up -d --build
-```
-
-
 ## Examples
+
+Check out the video on [X](https://twitter.com/bigsk1_com/status/1859603611296412020).
+
 
 https://aicodelabs.io/emotional.mp3
 
