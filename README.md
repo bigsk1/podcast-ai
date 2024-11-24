@@ -1,8 +1,9 @@
 [![Python application](https://github.com/bigsk1/podcast-ai/actions/workflows/python-app.yml/badge.svg)](https://github.com/bigsk1/podcast-ai/actions/workflows/python-app.yml)
-[![License](https://img.shields.io/github/license/bigsk1/podcast-ai)](https://github.com/bigsk1/podcast-ai/blob/main/LICENSE)
 ![Docker support](https://img.shields.io/badge/docker-supported-blue)
+[![Docker Pulls](https://img.shields.io/docker/pulls/bigsk1/podcast-ai)](https://hub.docker.com/r/bigsk1/podcast-ai)
+[![Docker Image Size](https://img.shields.io/docker/image-size/bigsk1/podcast-ai)](https://hub.docker.com/r/bigsk1/podcast-ai)
 [![Check it out on Twitter](https://img.shields.io/badge/Twitter-Video-blue?style=flat-square)](https://twitter.com/bigsk1_com/status/1859603611296412020)
-
+[![License](https://img.shields.io/github/license/bigsk1/podcast-ai)](https://github.com/bigsk1/podcast-ai/blob/main/LICENSE)
 
 
 # AI Podcast Generator 🎙️
@@ -24,18 +25,40 @@ https://github.com/user-attachments/assets/daeb1068-6f63-499c-9790-8ac34a46a140
 - ⚡ Real-time processing status updates
 - 📝 Optional fact-checking of content
 
+
+
+## Quick Start with Docker Run 🐳
+
+- Install Docker.
+- Place your `.env` file in the same directory as this command. See the .env.example for details
+
+Run the following command:
+
+```bash
+docker run -d --name podcast-app \
+  --env-file .env \
+  -p 5000:5000 \
+  -p 5173:5173 \
+  -v $(pwd)/public/audio:/app/public/audio \
+  -v $(pwd)/output:/app/output \
+  --restart unless-stopped \
+  --health-cmd="curl -f http://localhost:5000/health || exit 1" \
+  --health-interval=30s \
+  --health-timeout=10s \
+  --health-retries=3 \
+  bigsk1/podcast-ai:latest
+```
+
 ## Prerequisites
 
 
-- Node.js 18+ and npm
-- Python 3.10+
+- Node.js 18 +
+- Python 3.10 +
 - FFmpeg installed and in PATH
 - ElevenLabs API key
 - Anthropic (Claude) or XAI API key
 
-## Quick Start
-
-## Docker Setup 🐳 ( Recommended )
+## Docker Compose Setup 🐳
 
 You can run the application using Docker with these simple steps:
 
@@ -113,9 +136,9 @@ pip install -r requirements.txt
 4. Create .env file with your API keys:
 
 ```env
-# ELEVENLABS VOICE ID'S - add your own voice id's get from your Elevenlabs account
-VOICE1=111111111111       # male
-VOICE2=111111111111       # female
+# ELEVENLABS VOICE ID'S - add your own voice id's 
+VOICE1=111111111111
+VOICE2=111111111111
 
 # AI Model Settings - xai, anthropic
 AI_PROVIDER=anthropic
@@ -124,22 +147,35 @@ AI_PROVIDER=anthropic
 MODEL_NAME=claude-3-5-sonnet-latest
 
 # Podcast Generation Settings
-MIN_EXCHANGES=4                    # Minimum number of back-and-forth exchanges
-MAX_EXCHANGES=20                   # Maximum number of exchanges
-EXCHANGE_LENGTH_MIN_WORDS=20       # Minimum words per exchange
-EXCHANGE_LENGTH_MAX_WORDS=150      # Maximum words per exchange
+# Minimum number of back-and-forth exchanges
+MIN_EXCHANGES=4
+# Maximum number of exchanges
+MAX_EXCHANGES=20
+# Minimum words per exchange
+EXCHANGE_LENGTH_MIN_WORDS=20
+# Maximum words per exchange
+EXCHANGE_LENGTH_MAX_WORDS=150
 
 # Audio Length Control
-TARGET_LENGTH_MINUTES=3            # Target length for final podcast (in minutes)
-LENGTH_FLEXIBILITY=0.2             # Allowed deviation from target (20% = ±36 seconds for 3 min target)
-SOURCE_LENGTH_RATIO=0.2            # Target output length as ratio of source (0.2 = 20% of original)
-MIN_PODCAST_LENGTH=2               # Minimum podcast length in minutes
-MAX_PODCAST_LENGTH=5               # Maximum podcast length in minutes
+# Target length for final podcast (in minutes)
+TARGET_LENGTH_MINUTES=3
+# Allowed deviation from target (20% = ±36 seconds for 3 min target)
+LENGTH_FLEXIBILITY=0.2
+# Target output length as ratio of source (0.2 = 20% of original)
+SOURCE_LENGTH_RATIO=0.2
+# Minimum podcast length in minutes
+MIN_PODCAST_LENGTH=2
+# Minimum podcast length in minutes
+MAX_PODCAST_LENGTH=5
+# Maximum podcast length in minutes
 
 # Content Coverage
-COVERAGE_STYLE=highlights          # comprehensive, summary, or highlights, humor, emotional, debate
-FACT_CHECK_ENABLED=false           # Enable AI fact checking
-FACT_CHECK_STYLE=balanced          # balanced, critical, or supportive
+# comprehensive, summary, or highlights, humor, emotional, debate
+COVERAGE_STYLE=highlights
+# Enable AI fact checking
+FACT_CHECK_ENABLED=false
+# balanced, critical, or supportive
+FACT_CHECK_STYLE=balanced          
 
 # Model Settings
 TEMPERATURE=0.7
@@ -161,7 +197,8 @@ XAI_BASE_URL=https://api.x.ai
 XAI_API_KEY=your_xai_key
 
 # Frontend configuration
-VITE_API_URL=http://localhost:5000
+# if access on other machine on network change to actual server ip
+VITE_API_URL=http://localhost:5000   
 ```
 
 5. Change voice.json.example to voice.json and add your voice names and id's from elevenlabs, this is a collection that you want to use, set the current voice id in the .env when running the app.
