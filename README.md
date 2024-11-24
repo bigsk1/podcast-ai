@@ -9,9 +9,9 @@
 
 An AI-powered tool that transforms YouTube videos into engaging podcast discussions. Features a modern web interface for easy use and optional CLI functionality. Downloads videos, transcribes them, and generates natural conversations between AI voices discussing the content.
 
+https://github.com/user-attachments/assets/daeb1068-6f63-499c-9790-8ac34a46a140
 
 
-![AI Podcast UI Screenshot](public/podcast2.jpg)
 
 ## Features
 
@@ -46,7 +46,7 @@ git clone https://github.com/bigsk1/podcast-ai.git
 cd podcast-ai
 ```
 
-2. Create your .env file with required API keys and settings 
+2. Create your .env file with required API keys and settings, see the .env.example 
 
 3. Using Docker Compose:
 
@@ -68,7 +68,15 @@ Note: Generated audio files will be available in the `public/audio` directory, j
 
 ### Docker with Cuda for faster transcription on Nvidia GPU
 
-Note: This is only slightly faster as the transcription can go pretty quick anyway on cpu
+Note: This is only slightly faster as the transcription can go pretty quick anyway on cpu. To use make sure you have nvidia container toolkit and cudnn installed on host machine. 
+
+- Test to see if you can run by first using
+
+```bash
+sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
+```
+
+- Run docker compose with cuda enabled transcription
 ```bash
 docker compose -f cuda.docker-compose.yml up -d --build
 ```
@@ -174,7 +182,7 @@ sudo apt install ffmpeg
 
 ## Usage
 
-### Web Interface (Recommended)
+### Web Interface
 
 1. Start the backend server in one terminal:
 ```bash
@@ -250,25 +258,6 @@ https://aicodelabs.io/merged.mp3
 </audio>
 
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) for video downloading
-- [Faster Whisper](https://github.com/guillaumekln/faster-whisper) for transcription
-- [ElevenLabs](https://elevenlabs.io/) for text-to-speech
-- [Anthropic](https://www.anthropic.com/) for Claude AI
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## In Progress
 
 1. Adding Openai 
@@ -313,4 +302,4 @@ where cudnn_ops64_9.dll
 
 ## pyaudio codec issue
 
-Make sure you have ffmpeg inside and adding to PATH on windows terminal ( winget install ffmpeg )
+Make sure you have ffmpeg installed and added to PATH on windows terminal ( winget install ffmpeg )
