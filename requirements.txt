@@ -5,7 +5,7 @@ pydub==0.25.1
 
 # AI and APIs
 anthropic==0.19.1
-requests==2.31.0
+requests==2.32.2
 
 # Web Backend (for UI)
 fastapi==0.110.0
