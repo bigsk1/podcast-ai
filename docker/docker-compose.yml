@@ -7,11 +7,11 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.dev
     ports:
-      - "5000:5000"  # Backend
-      - "5173:5173"  # Frontend
+      - "5000:5000"
+      - "5173:5173"
     volumes:
       - ../:/app
-      - /app/node_modules  # Preserve node_modules in container
+      - /app/node_modules
       - ../public/audio:/app/public/audio  
       - ../output:/app/output  
     env_file:
@@ -20,7 +20,8 @@ services:
       - PYTHONUNBUFFERED=1
       - HOST=0.0.0.0
       - PORT=5000
-      - VITE_API_URL=http://localhost:5000
+      # Use dynamic API URL based on platform
+      - VITE_API_URL=${DOCKER_GATEWAY_HOST:-http://localhost:5000}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
@@ -29,6 +30,9 @@ services:
       retries: 3
     networks:
       - podcast-network
+    # Add extra hosts for WSL2 compatibility
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   podcast-network:

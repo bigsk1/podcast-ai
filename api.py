@@ -16,13 +16,26 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Podcast Review API")
 
-# Enable CORS
+# Enable CORS with explicit origins
+origins = [
+    "http://localhost:5173",
+    "http://localhost:5000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8080",
+    "http://192.168.1.*",
+    "http://192.168.2.*", 
+    "http://192.168.70.*",
+    "http://host.docker.internal:5000",
+    "http://host.docker.internal:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
-    allow_credentials=False,  # Must be False when using allow_origins=["*"]
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Create directories if they don't exist

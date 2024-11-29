@@ -45,3 +45,5 @@ LICENSE
 Dockerfile
 docker-compose.yml
 .dockerignore
+
+current_requirements.txt 
