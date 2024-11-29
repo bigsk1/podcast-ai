@@ -193,38 +193,34 @@ class PodcastAnalyzer:
         else:
             logging.debug(f"{prefix}: <empty>")
 
-    def _process_raw_response(self, raw_content: str) -> str:
-        """Process raw response with improved ContentBlock handling"""
+    def _process_raw_response(self, content: str) -> str:
+        """Process raw response with improved handling"""
         try:
-            # First try to extract from ContentBlock if present
-            if 'ContentBlock' in raw_content:
-                matches = re.findall(r'text=["\'](.*?)["\'](?:,|\))', raw_content, re.DOTALL)
-                if matches:
-                    content = matches[0].replace('\\n', '\n').replace('\\"', '"').replace("\\'", "'")
-                    return content
-            
-            # If not in ContentBlock format or extraction failed, use raw content
-            content = raw_content.strip()
+            content = content.strip()
             
             # Ensure content has proper speaker formatting
             if not any(line.strip().startswith(('Speaker 1:', 'Speaker 2:')) for line in content.split('\n')):
                 logging.warning("Content missing speaker format, attempting to fix...")
                 lines = content.split('\n')
                 formatted_lines = []
-                for i, line in enumerate(lines):
+                current_speaker = 1
+                
+                for line in lines:
                     if line.strip():
-                        speaker = "Speaker 1:" if i % 2 == 0 else "Speaker 2:"
                         if not line.startswith(('Speaker 1:', 'Speaker 2:')):
-                            formatted_lines.append(f"{speaker} {line.strip()}")
+                            formatted_lines.append(f"Speaker {current_speaker}: {line.strip()}")
+                            current_speaker = 3 - current_speaker  # Toggle between 1 and 2
                         else:
                             formatted_lines.append(line)
+                            current_speaker = 1 if line.startswith('Speaker 2:') else 2
+                
                 content = '\n'.join(formatted_lines)
             
             return content
             
         except Exception as e:
             logging.error(f"Error processing response: {e}")
-            return raw_content
+            return content
 
     def _extract_exchanges(self, cleaned_content: str) -> List[Dict]:
         """Extract exchanges with improved validation"""
@@ -233,6 +229,7 @@ class PodcastAnalyzer:
         max_exchanges = self.config['MAX_EXCHANGES']
         
         logging.info(f"Processing content for up to {max_exchanges} exchanges")
+        current_speaker = None
         
         for line in lines:
             if len(exchanges) >= max_exchanges:
@@ -253,10 +250,22 @@ class PodcastAnalyzer:
                 else:
                     speaker_num = '1' if '1' in speaker else '2'
                 
+                # Extract the actual text content
                 text = speaker_match.group(4).strip()
+                
+                # Remove any nested speaker labels
+                text = re.sub(r'Speaker \d:', '', text)
+                
+                # Clean and validate the text
                 text = self.clean_conversation_text(text)
                 
                 if text and len(text.split()) >= self.config['EXCHANGE_LENGTH_MIN_WORDS']:
+                    # Ensure alternating speakers
+                    if current_speaker and current_speaker == speaker_num:
+                        logging.warning(f"Found consecutive exchanges for Speaker {speaker_num}, skipping")
+                        continue
+                    
+                    current_speaker = speaker_num
                     exchanges.append({
                         "speaker": speaker_num,
                         "text": text,
@@ -305,21 +314,94 @@ class PodcastAnalyzer:
 
     async def generate_comprehensive_discussion(self, transcript: Dict) -> Dict:
         """Generate a thorough podcast discussion with correct settings handling"""
-        
         try:
             # Calculate target length and exchanges
             source_length = max(s['end'] for s in transcript['segments'])
             target_length = await self.calculate_target_length(source_length)
             
             # Get settings from config instead of directly from env
-            coverage_style = os.getenv('COVERAGE_STYLE', 'comprehensive').lower()
-            fact_check_enabled = os.getenv('FACT_CHECK_ENABLED', 'true').lower() == 'true'
-            fact_check_style = os.getenv('FACT_CHECK_STYLE', 'balanced').lower()
+            coverage_style = self.config['COVERAGE_STYLE']
+            fact_check_enabled = self.config['FACT_CHECK_ENABLED']
+            fact_check_style = self.config['FACT_CHECK_STYLE']
             
             logging.info(f"Source length: {source_length/60:.1f}m | Target length: {target_length:.1f}m")
             logging.info(f"Using {coverage_style} coverage style with fact checking {'enabled' if fact_check_enabled else 'disabled'}")
-            if fact_check_enabled:
-                logging.info(f"Fact check style: {fact_check_style}")
+            
+            # Content analysis prompts based on style
+            content_analysis_prompt = {
+                'emotional': f"""
+                    Have the speakers discuss the content with emotional depth and expressiveness:
+                    1. Use empathetic, passionate, or intense language to convey engagement
+                    2. Infuse excitement, concern, or other strong feelings as relevant
+                    3. Let the speakers' tone reflect emotions that enhance connection
+                    4. Emphasize points that are likely to stir emotions in listeners
+                    5. Aim to make the discussion feel genuine and heartfelt
+                    
+                    Content length: {source_length/60:.1f} minutes
+                    Content to discuss:
+                    {transcript['text']}
+                """,
+                'debate': f"""
+                    Analyze the content from a debate perspective:
+                    1. Identify key arguments and counterarguments
+                    2. Have Speaker 1 and Speaker 2 present opposing viewpoints
+                    3. Present potential points of agreement or compromise
+                    4. Highlight contradictions or controversial points
+                    5. Evaluate argument strength and provide balanced analysis
+                    
+                    Content length: {source_length/60:.1f} minutes
+                    Content to discuss:
+                    {transcript['text']}
+                """,
+                'humor': f"""
+                    Analyze with a light-hearted, entertaining approach:
+                    1. Find amusing angles or funny observations
+                    2. Include witty remarks and playful commentary
+                    3. Look for ironic or absurd elements
+                    4. Keep it informative while being entertaining
+                    5. Maintain respectful humor throughout
+                    
+                    Content length: {source_length/60:.1f} minutes
+                    Content to discuss:
+                    {transcript['text']}
+                """,
+                'summary': f"""
+                    Provide a focused discussion of main points:
+                    1. Core message or thesis
+                    2. Key supporting points
+                    3. Most important evidence
+                    4. Main conclusions
+                    5. Essential takeaways
+                    
+                    Content length: {source_length/60:.1f} minutes
+                    Content to discuss:
+                    {transcript['text']}
+                """,
+                'highlights': f"""
+                    Focus on the most interesting and notable points:
+                    1. Surprising or unique insights
+                    2. Strongest arguments
+                    3. Memorable examples
+                    4. Stand-out moments
+                    5. Key revelations
+                    
+                    Content length: {source_length/60:.1f} minutes
+                    Content to discuss:
+                    {transcript['text']}
+                """,
+                'comprehensive': f"""
+                    Provide a detailed analysis of the entire content:
+                    1. All major topics and themes
+                    2. Key arguments and evidence
+                    3. Important details and examples
+                    4. Chronological progression
+                    5. Main conclusions
+                    
+                    Content length: {source_length/60:.1f} minutes
+                    Content to discuss:
+                    {transcript['text']}
+                """
+            }.get(coverage_style, 'comprehensive')  # Fallback to comprehensive if invalid style
             
             # Calculate target exchanges
             target_exchanges = min(
@@ -331,218 +413,93 @@ class PodcastAnalyzer:
             
             logging.info(f"Planning {target_exchanges} exchanges (max: {self.config['MAX_EXCHANGES']})")
             
-            # Adjust content analysis based on coverage style
-            content_analysis_prompt = {
-                'emotional': f"""
-                    Have the speakers discuss the content with emotional depth and expressiveness:
-                    1. Use empathetic, passionate, or intense language to convey engagement with the content
-                    2. Infuse excitement, concern, or other strong feelings as relevant to the subject matter
-                    3. Let the speakers' tone reflect emotions that enhance connection with the audience
-                    4. Emphasize points that are likely to stir emotions in listeners
-                    5. Aim to make the discussion feel genuine and heartfelt, you are personally moved by the content
-                    
-                    This is not an analysis of emotional elements in the content but rather an emotionally expressive delivery about it.
-                    Content length: {source_length/60:.1f} minutes
-                    
-                    Content to discuss:
-                    {transcript['text']}
-                """,
-                'debate': f"""
-                    Analyze the content from a debate perspective:
-                    1. Identify key arguments and counterarguments
-                    2. Outline both supporting using Speaker 1 and opposing evidence using Speaker 2
-                    3. Present potential points of agreement or compromise
-                    4. Highlight any contradictions or controversial points
-                    5. Evaluate the strength of each argument and provide a final verdict
-                    
-                    Focus on creating a balanced yet critical examination.
-                    Content length: {source_length/60:.1f} minutes
-                    
-                    Content to analyze:
-                    {transcript['text']}
-                """,
-                'humor': f"""
-                    Analyze this content with a light-hearted, entertaining approach:
-                    1. Find amusing angles or funny observations
-                    2. Identify potential jokes or witty remarks
-                    3. Look for ironic or absurd elements
-                    4. Spot opportunities for playful commentary
-                    5. Note any unintentionally funny moments
-                    
-                    Make it entertaining while still being informative.
-                    Focus on finding humor without being disrespectful.
-                    Content length: {source_length/60:.1f} minutes
-                    
-                    Content to analyze:
-                    {transcript['text']}
-                """,
-                'summary': f"""
-                    Provide a concise summary of the main points:
-                    1. Core message or thesis
-                    2. 3-4 key supporting points
-                    3. Most important evidence
-                    4. Main conclusions
-                    
-                    Focus on the most significant elements.
-                    Content length: {source_length/60:.1f} minutes
-                    
-                    Content to analyze:
-                    {transcript['text']}
-                """,
-                'highlights': f"""
-                    Analyze the content and highlight the most interesting or notable points:
-                    1. Surprising or unique insights
-                    2. Strongest arguments
-                    3. Memorable examples
-                    4. Stand-out moments
-                    
-                    Focus on what makes this content distinctive.
-                    Content length: {source_length/60:.1f} minutes
-                    
-                    Content to analyze:
-                    {transcript['text']}
-                """,
-                'comprehensive': f"""
-                    Provide a detailed analysis of the entire content:
-                    1. All major topics and themes
-                    2. Key arguments and evidence
-                    3. Important details and examples
-                    4. Chronological progression
-                    5. Main conclusions
-                    
-                    Cover the entire content thoroughly, not just highlights.
-                    Content length: {source_length/60:.1f} minutes
-                    
-                    Content to analyze:
-                    {transcript['text']}
-                """
-            }.get(coverage_style, 'comprehensive')  # Fallback to comprehensive if invalid style
-            
-            # Generate content analysis
+            # Get content analysis
             content_analysis = await self._generate_content_analysis(transcript, content_analysis_prompt)
             
-            # Generate fact checks only if enabled
+            # Generate fact checks if enabled
             fact_checks = ""
             if fact_check_enabled:
-                logging.info(f"Generating fact checks with {fact_check_style} style")
                 fact_check_prompt = {
                     'balanced': """
-                        Analyze the content's accuracy objectively:
-                        - Verify key factual claims
-                        - Note both accurate and inaccurate statements
+                        Analyze objectively:
+                        - Verify key claims
+                        - Note accurate and inaccurate statements
                         - Provide corrections where needed
                         - Add relevant context
-                        Balance praise and criticism.
                     """,
                     'critical': """
-                        Thoroughly examine all claims for accuracy:
+                        Examine claims thoroughly:
                         - Scrutinize every major assertion
-                        - Identify potential errors or misunderstandings
+                        - Identify errors
                         - Provide detailed corrections
                         - Note missing context
-                        Focus on improving accuracy and explain what is false and what is truth.
                     """,
                     'supportive': """
-                        Review content accuracy constructively:
-                        - Verify main factual claims
+                        Review constructively:
+                        - Verify main claims
                         - Highlight accurate information
-                        - Gently note any needed corrections
+                        - Note needed corrections gently
                         - Add helpful context
-                        Maintain a positive tone.
                     """
                 }.get(fact_check_style, 'balanced')
                 
                 fact_checks = await self._generate_fact_checks(transcript['text'], fact_check_prompt)
-            else:
-                logging.info("Fact checking disabled")
             
-            # Calculate target exchanges
-            SPEECH_RATE = 150
-            words_per_exchange = (self.config['EXCHANGE_LENGTH_MIN_WORDS'] + self.config['EXCHANGE_LENGTH_MAX_WORDS']) // 2
-            target_exchanges = max(20, int((target_length * SPEECH_RATE) / words_per_exchange))
-            
-            logging.info(f"Source length: {source_length/60:.1f}m | Target length: {target_length:.1f}m")
-            logging.info(f"Using {coverage_style} coverage style")
-            logging.info(f"Planning {target_exchanges} exchanges for target length")
-            
-            # Generate discussion with style-appropriate prompt
+            # Generate discussion with style-appropriate prompts
             discussion_prompt = f"""
-            Create an informative discussion about this content.
-            Use {coverage_style} coverage style with {fact_check_style} approach to accuracy.
-
-            Important Rules:
-            - NO podcast names or introductions
-            - Start directly with content discussion
-            - Provide a summary on the content DO NOT repeat word for word
-            - Focus on the actual content
+            Create an {coverage_style} discussion about this content.
+            
+            Required Format:
+            Speaker 1: [First point about the content]
+            Speaker 2: [Response with additional insight]
+            (continue alternating speakers)
+            
+            Style Guidelines:
+            - Use {coverage_style} approach
             - Natural dialogue style
-            - {coverage_style.capitalize()} coverage of the material
-                
-                Required Format:
-                Speaker 1: [First point about the content]
-                Speaker 2: [Response and additional insight]
-                (continue alternating speakers)
-
-                Required Structure:
-                1. Content Discussion (90% of exchanges)
-                - Cover key points chronologically
-                - Include insights and analysis
-                - Address any corrections or clarifications
-                2. Brief Conclusion (10% of exchanges)
-                - Summarize main takeaways
-                - Final thoughts
-
-                Generate exactly {target_exchanges} total exchanges.
-                Each exchange should be {self.config['EXCHANGE_LENGTH_MIN_WORDS']}-{self.config['EXCHANGE_LENGTH_MAX_WORDS']} words.
-
-                Content to Discuss:
-                {content_analysis}
-
-                Fact Checks to Include:
-                {fact_checks}
-                """
+            - Maintain speaker alternation
+            - Target {target_exchanges} exchanges
+            - {self.config['EXCHANGE_LENGTH_MIN_WORDS']}-{self.config['EXCHANGE_LENGTH_MAX_WORDS']} words per exchange
+            
+            Content to Discuss:
+            {content_analysis}
+            
+            {fact_checks if fact_checks else ''}
+            """
             
             response = await self._make_ai_request(discussion_prompt, temperature=0.7)
-            cleaned_content = self._process_raw_response(str(response.content))
+            cleaned_content = self._process_raw_response(response)
             exchanges = self._extract_exchanges(cleaned_content)
             
-            if len(exchanges) >= target_exchanges * 0.8:  # Allow some flexibility
+            if len(exchanges) >= target_exchanges * 0.8:
                 return {"conversation": exchanges}
-                
-            # If first attempt didn't produce enough exchanges, try again with simpler prompt
+            
+            # Backup attempt if needed
             logging.warning(f"First attempt only produced {len(exchanges)} exchanges, trying again")
             
             backup_prompt = f"""
-            Create a detailed discussion about this content.
-            Format exactly like this, with {target_exchanges} total exchanges:
-
-            Speaker 1: [Discussion point about the content]
-            Speaker 2: [Response and additional insight]
-            Speaker 1: [Follow-up point with new information]
-            Speaker 2: [Analysis and connection to other points]
-
-            Important:
-            - NO podcast names or introductions
-            - Start directly with content discussion
-            - Provide a summary on the content DO NOT repeat word for word
-            - Be specific and detailed
-            - Cover the entire source content
-            - Natural conversation style
-
+            Create a detailed {coverage_style} discussion with exactly {target_exchanges} exchanges.
+            
+            Format EXACTLY as:
+            Speaker 1: [Point about content]
+            Speaker 2: [Response to that point]
+            
+            Rules:
+            - Maintain {coverage_style} style
+            - Every line starts with "Speaker 1:" or "Speaker 2:"
+            - Alternate speakers consistently
+            - {self.config['EXCHANGE_LENGTH_MIN_WORDS']}-{self.config['EXCHANGE_LENGTH_MAX_WORDS']} words per exchange
+            
             Content:
             {content_analysis}
             """
             
             backup_response = await self._make_ai_request(backup_prompt, temperature=0.7)
-            backup_content = self._process_raw_response(str(backup_response.content))
+            backup_content = self._process_raw_response(backup_response)
             backup_exchanges = self._extract_exchanges(backup_content)
             
-            if len(backup_exchanges) >= target_exchanges * 0.8:
-                return {"conversation": backup_exchanges}
-                
-            # Use whichever attempt produced more exchanges
             return {"conversation": exchanges if len(exchanges) > len(backup_exchanges) else backup_exchanges}
-
+            
         except Exception as e:
             logging.error(f"Error in discussion generation: {str(e)}")
             raise
@@ -551,7 +508,8 @@ class PodcastAnalyzer:
         """Generate a focused content analysis"""
         try:
             response = await self._make_ai_request(prompt, temperature=0.3)
-            return str(response.content)
+            # No need to access .content since _make_ai_request now returns the text directly
+            return response
         except Exception as e:
             logging.error(f"Error generating content analysis: {str(e)}")
             raise
@@ -559,18 +517,11 @@ class PodcastAnalyzer:
     async def _generate_fact_checks(self, content: str, fact_check_prompt: str) -> str:
         """Generate fact checks with configurable style"""
         try:
-            prompt = f"""
-            {fact_check_prompt}
-            
-            Content to analyze:
-            {content}
-            """
-            
-            response = await self._make_ai_request(prompt, temperature=0.3)
-            return str(response.content)
-            
+            response = await self._make_ai_request(fact_check_prompt + f"\n\nContent to analyze:\n{content}", temperature=0.3)
+            # response is now the text content directly
+            return response
         except Exception as e:
-            logging.error(f"Error generating fact checks: {e}")
+            logging.error(f"Error generating fact checks: {str(e)}")
             return "Fact checking unavailable."
 
     async def _make_ai_request(self, prompt: str, temperature: float = 0.7) -> any:
@@ -585,46 +536,93 @@ class PodcastAnalyzer:
             else:
                 client = Anthropic(api_key=self.config['ANTHROPIC_API_KEY'])
             
-            # Initial request with system message
+            # Initial request with more explicit formatting instructions
+            system_prompt = """
+            You must generate a podcast discussion between two speakers.
+            ALWAYS format your response exactly like this, with multiple exchanges:
+            
+            Speaker 1: [First point]
+            Speaker 2: [Response to first point]
+            Speaker 1: [Second point]
+            Speaker 2: [Response to second point]
+            
+            Continue this alternating pattern for the entire response.
+            Every line must start with either 'Speaker 1:' or 'Speaker 2:'.
+            Generate multiple exchanges to thoroughly cover the topic.
+            """
+            
+            formatted_prompt = f"""
+            Create a detailed podcast discussion about this topic.
+            You must format EVERY line exactly like this:
+            Speaker 1: [First point about the content]
+            Speaker 2: [Response and additional insight]
+            
+            Generate at least 10 exchanges (20 total lines) following this exact format.
+            Make sure speakers alternate every single time.
+            Never skip the speaker label.
+            Never combine multiple speakers in one line.
+            
+            Topic to discuss:
+            {prompt}
+            """
+            
             response = client.messages.create(
                 model=self.config['MODEL_NAME'],
                 max_tokens=self.config['MAX_TOKENS'],
                 temperature=temperature,
-                system="Generate podcast discussion with alternating Speaker 1: and Speaker 2: lines.",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
+                system=system_prompt,
+                messages=[{
+                    "role": "user",
+                    "content": formatted_prompt
+                }]
             )
             
-            content = str(response.content)
+            # Extract content properly from the response
+            if hasattr(response.content, 'text'):
+                content = response.content.text
+            elif isinstance(response.content, list) and len(response.content) > 0:
+                content = response.content[0].text
+            else:
+                content = str(response.content)
+                
+            # If response doesn't have proper formatting, try one more time with even more explicit instructions
             if not any(line.strip().startswith(('Speaker 1:', 'Speaker 2:')) for line in content.split('\n')):
                 logging.warning("Response does not contain proper speaker format, retrying...")
-                # Retry with more explicit prompt
-                response = client.messages.create(
+                
+                retry_prompt = f"""
+                Your task is to create a natural dialogue discussion.
+                You MUST follow this exact format for EVERY line:
+                
+                Speaker 1: Here's my first point about the topic.
+                Speaker 2: That's interesting, let me add my perspective.
+                Speaker 1: Building on that, here's another aspect to consider.
+                Speaker 2: I see what you mean, and I'd also like to point out...
+                
+                Continue this exact pattern. Never deviate from it.
+                Generate at least 10 complete exchanges.
+                Discussion topic:
+                {prompt}
+                """
+                
+                retry_response = client.messages.create(
                     model=self.config['MODEL_NAME'],
                     max_tokens=self.config['MAX_TOKENS'],
                     temperature=temperature,
-                    system="You must format every line as 'Speaker 1:' or 'Speaker 2:' followed by their dialogue.",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": f"""
-                            Format EXACTLY like this:
-                            Speaker 1: [First line]
-                            Speaker 2: [Response]
-                            Speaker 1: [Next line]
-                            
-                            Content to discuss:
-                            {prompt}
-                            """
-                        }
-                    ]
+                    system=system_prompt,
+                    messages=[{
+                        "role": "user",
+                        "content": retry_prompt
+                    }]
                 )
-            
-            return response
+                
+                if hasattr(retry_response.content, 'text'):
+                    return retry_response.content.text
+                elif isinstance(retry_response.content, list) and len(retry_response.content) > 0:
+                    return retry_response.content[0].text
+                else:
+                    return str(retry_response.content)
+                    
+            return content
                 
         except Exception as e:
             provider = self.config['AI_PROVIDER'].lower()
@@ -667,6 +665,16 @@ class PodcastAnalyzer:
             return ""
         
         try:
+            # Remove TextBlock wrapper if present
+            if 'TextBlock' in text:
+                matches = re.findall(r"text='([^']*)'", text)
+                if matches:
+                    text = ' '.join(matches)
+            
+            # Remove speaker labels
+            text = re.sub(r'^Speaker \d:\s*', '', text)
+            text = re.sub(r'\s*Speaker \d:\s*', ' ', text)
+            
             # Remove common formatting artifacts
             text = text.replace('\\"', '"').replace('\\n', ' ')
             text = re.sub(r'[*_~`]', '', text)
@@ -707,6 +715,7 @@ class PodcastAnalyzer:
     async def generate_audio(self, conversation: Dict) -> List[str]:
         """Generate audio for each line of conversation"""
         logging.info("Generating audio files")
+        logging.info(f"Conversation structure: {json.dumps(conversation, indent=2)}")
         audio_files = []
         
         # Fixed voice settings within valid ranges
@@ -714,7 +723,7 @@ class PodcastAnalyzer:
             "default": {
                 "stability": 0.85,
                 "similarity_boost": 0.75,
-                "style": 0.75,              # Fixed to be within 0-1 range
+                "style": 0.75,
                 "use_speaker_boost": True
             }
         }
@@ -723,7 +732,21 @@ class PodcastAnalyzer:
             initial_count, _ = self.display_elevenlabs_quota()
             
             for i, entry in enumerate(conversation.get('conversation', [])):
-                text = entry['text'].strip()
+                # Extract clean text from TextBlock if present
+                raw_text = entry['text']
+                if 'TextBlock' in raw_text:
+                    match = re.search(r"text='([^']*)'", raw_text)
+                    if match:
+                        text = match.group(1)
+                    else:
+                        text = raw_text
+                else:
+                    text = raw_text
+                
+                # Remove any "Speaker X:" prefixes
+                text = re.sub(r'^Speaker \d:\s*', '', text.strip())
+                text = re.sub(r'\s*Speaker \d:\s*', ' ', text)
+                
                 speaker = entry['speaker']
                 voice_id = self.config['VOICE1'] if speaker == "1" else self.config['VOICE2']
                 

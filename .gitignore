@@ -94,3 +94,5 @@ coverage.xml
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+current_requirements.txt 
