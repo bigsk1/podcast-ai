@@ -38,7 +38,7 @@ Run the following command in wsl or ubuntu:
 docker run -d --name podcast-app \
   --env-file .env \
   --add-host=host.docker.internal:host-gateway \
-  -e VITE_API_URL=http://host.docker.internal:5000 \
+  -e VITE_API_URL=http://localhost:5000 \
   -e PYTHONUNBUFFERED=1 \
   -e HOST=0.0.0.0 \
   -e PORT=5000 \
@@ -57,7 +57,7 @@ docker run -d --name podcast-app \
 Run in Windows Command Prompt: 
 
 ```bash
-docker run -d --name podcast-app --env-file .env --add-host=host.docker.internal:host-gateway -e VITE_API_URL=http://host.docker.internal:5000 -e PYTHONUNBUFFERED=1 -e HOST=0.0.0.0 -e PORT=5000 -p 5000:5000 -p 5173:5173 -v %cd%/public/audio:/app/public/audio -v %cd%/output:/app/output --restart unless-stopped --health-cmd="curl -f http://localhost:5000/health || exit 1" --health-interval=30s --health-timeout=10s --health-retries=3 bigsk1/podcast-ai:latest
+docker run -d --name podcast-app --env-file .env --add-host=host.docker.internal:host-gateway -e VITE_API_URL=http://localhost:5000 -e PYTHONUNBUFFERED=1 -e HOST=0.0.0.0 -e PORT=5000 -p 5000:5000 -p 5173:5173 -v %cd%/public/audio:/app/public/audio -v %cd%/output:/app/output --restart unless-stopped --health-cmd="curl -f http://localhost:5000/health || exit 1" --health-interval=30s --health-timeout=10s --health-retries=3 bigsk1/podcast-ai:latest
 ```
 
 
