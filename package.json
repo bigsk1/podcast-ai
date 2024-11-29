@@ -18,6 +18,9 @@
     "wavesurfer.js": "^7.8.8",
     "esbuild": "0.24.0"
   },
+  "overrides": {
+  "esbuild": "0.24.0"
+  },
   "devDependencies": {
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",
