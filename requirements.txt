@@ -10,7 +10,7 @@ requests==2.32.2
 # Web Backend (for UI)
 fastapi==0.110.0
 uvicorn==0.27.1
-python-multipart==0.0.9
+python-multipart==0.0.18
 pydantic==2.6.3
 aiofiles==23.2.1
 
