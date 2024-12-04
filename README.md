@@ -182,7 +182,7 @@ MAX_PODCAST_LENGTH=5
 # Maximum podcast length in minutes
 
 # Content Coverage
-# comprehensive, summary, or highlights, humor, emotional, debate
+# comprehensive, summary, or highlights, humor, emotional, debate, simple
 COVERAGE_STYLE=highlights
 # Enable AI fact checking
 FACT_CHECK_ENABLED=false

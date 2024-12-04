@@ -99,10 +99,10 @@ class PodcastAnalyzer:
             'ELEVENLABS_API_KEY': os.getenv('ELEVENLABS_API_KEY'),
             
             # Podcast Generation Settings
-            'MIN_EXCHANGES': int(os.getenv('MIN_EXCHANGES', '4')),
-            'MAX_EXCHANGES': int(os.getenv('MAX_EXCHANGES', '20')),
-            'EXCHANGE_LENGTH_MIN_WORDS': int(os.getenv('EXCHANGE_LENGTH_MIN_WORDS', '20')),
-            'EXCHANGE_LENGTH_MAX_WORDS': int(os.getenv('EXCHANGE_LENGTH_MAX_WORDS', '100')),
+            'MIN_EXCHANGES': int(os.getenv('MIN_EXCHANGES', '8')),
+            'MAX_EXCHANGES': int(os.getenv('MAX_EXCHANGES', '30')),
+            'EXCHANGE_LENGTH_MIN_WORDS': int(os.getenv('EXCHANGE_LENGTH_MIN_WORDS', '10')),
+            'EXCHANGE_LENGTH_MAX_WORDS': int(os.getenv('EXCHANGE_LENGTH_MAX_WORDS', '120')),
             
             # Length Control
             'TARGET_LENGTH_MINUTES': float(os.getenv('TARGET_LENGTH_MINUTES', '3')),
@@ -336,6 +336,18 @@ class PodcastAnalyzer:
                     3. Let the speakers' tone reflect emotions that enhance connection
                     4. Emphasize points that are likely to stir emotions in listeners
                     5. Aim to make the discussion feel genuine and heartfelt
+                    
+                    Content length: {source_length/60:.1f} minutes
+                    Content to discuss:
+                    {transcript['text']}
+                """,
+                'simple': f"""
+                    Simplify the content for easy understanding, like explaining to a 16-year-old:
+                    1. Break down complex ideas into basic concepts
+                    2. Use simple, everyday language without jargon
+                    3. Focus on clear explanations of key points
+                    4. Provide examples or analogies to clarify tough topics
+                    5. Keep it concise, engaging, and easy to follow
                     
                     Content length: {source_length/60:.1f} minutes
                     Content to discuss:
